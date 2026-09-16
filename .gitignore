@@ -7,3 +7,5 @@ test-data-*/
 ui-test-data-*/
 showcase-data-*/
 *.png
+dist/
+/Dayglance.exe

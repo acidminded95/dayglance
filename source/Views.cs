@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Windows;
@@ -442,13 +443,72 @@ namespace Dayglance {
     });
    };
   }
+  // Small week-grid sample for the "current activity in week view" setting.
+  FrameworkElement WeekHighlightPreview(string mode) {
+   const double width=312,height=116,column=104,row=29;
+   var canvas=new Canvas { Width=width,Height=height,Background=UI.Card,ClipToBounds=true };
+   var shade=new Rectangle { Width=column,Height=height,Fill=UI.Hero }; Canvas.SetLeft(shade,column); canvas.Children.Add(shade);
+   for(int c=1;c<3;c++) canvas.Children.Add(new Line { X1=c*column,X2=c*column,Y1=0,Y2=height,Stroke=UI.Line,StrokeThickness=.5 });
+   for(int r=0;r<5;r++) canvas.Children.Add(new Line { X1=0,X2=width,Y1=r*row,Y2=r*row,Stroke=UI.Line,StrokeThickness=.5 });
+   Func<string,string,double,double,double,Border> block=(title,hex,x,y,h)=> {
+    var text=new TextBlock { Text=title,FontSize=11,FontWeight=FontWeights.SemiBold,Foreground=UI.Ink(hex),TextTrimming=TextTrimming.CharacterEllipsis };
+    var card=new Border { Child=text,Width=column-8,Height=h,Padding=new Thickness(5,3,4,1),Background=UI.B(hex),CornerRadius=new CornerRadius(5),Opacity=.95 };
+    Canvas.SetLeft(card,x+4); Canvas.SetTop(card,y); Panel.SetZIndex(card,5); canvas.Children.Add(card); return card;
+   };
+   block("","#9CCBFF",0,row*.5,row*1.6); block("","#FFD18F",column*2,row*2.3,row*1.5);
+   string accentHex=Palette.Hex(((SolidColorBrush)UI.Accent).Color);
+   var current=block(UI.T("Sample activity"),"#B9AAFF",column,row*1.1,row*2);
+   if(mode=="line") { current.BorderBrush=UI.Text; current.BorderThickness=new Thickness(2); }
+   else {
+    var halo=new Border { Width=current.Width+6,Height=current.Height+6,CornerRadius=new CornerRadius(7),BorderBrush=UI.Accent,BorderThickness=new Thickness(2.5),IsHitTestVisible=false };
+    if(mode=="glow") {
+     var glow=new System.Windows.Media.Effects.DropShadowEffect { Color=((SolidColorBrush)UI.Accent).Color,ShadowDepth=0,BlurRadius=16,Opacity=.95 }; halo.Effect=glow;
+     glow.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.OpacityProperty,new System.Windows.Media.Animation.DoubleAnimation(.25,1,TimeSpan.FromMilliseconds(1100)) { AutoReverse=true,RepeatBehavior=System.Windows.Media.Animation.RepeatBehavior.Forever });
+    }
+    Canvas.SetLeft(halo,column+1); Canvas.SetTop(halo,row*1.1-3); Panel.SetZIndex(halo,4); canvas.Children.Add(halo);
+   }
+   double y=row*2.4; canvas.Children.Add(new Line { X1=0,X2=width,Y1=y,Y2=y,Stroke=UI.Accent,StrokeThickness=1.5 });
+   var dot=new Ellipse { Width=8,Height=8,Fill=UI.Accent }; Canvas.SetLeft(dot,column-4); Canvas.SetTop(dot,y-4); Panel.SetZIndex(dot,6); canvas.Children.Add(dot);
+   return new Border { Child=canvas,CornerRadius=new CornerRadius(10),BorderBrush=UI.Line,BorderThickness=new Thickness(1),Margin=new Thickness(0,8,0,4),HorizontalAlignment=HorizontalAlignment.Left,ClipToBounds=true };
+  }
+  bool checkingUpdates; string announcedUpdate;
+  // Background GitHub check. Automatic checks (every few hours, if enabled) announce a newer release once per session with a small card.
+  void CheckForUpdates(bool manual,Action<UpdateInfo,Exception> done) {
+   if(preview || checkingUpdates || (!manual && !State.AutoUpdateCheck)) return;
+   checkingUpdates=true;
+   System.Threading.ThreadPool.QueueUserWorkItem(_=> {
+    UpdateInfo info=null; Exception error=null;
+    try { info=Updater.FetchLatest(); } catch(Exception ex) { error=ex; }
+    Dispatcher.BeginInvoke(new Action(()=> {
+     checkingUpdates=false;
+     if(done!=null) { done(info,error); return; }
+     if(error==null && Updater.IsNewer(info) && announcedUpdate!=info.Tag) { announcedUpdate=info.Tag; new ReminderToast(UI.T("Update available"),"Dayglance "+info.Version+"  ·  "+UI.T("Click to install"),()=>OfferUpdate(info),false); }
+    }));
+   });
+  }
+  void OfferUpdate(UpdateInfo info) {
+   Restore();
+   string question=UI.Language=="es"?"¿Instalar Dayglance "+info.Version+" ahora? Dayglance se cerrará, se actualizará y volverá a abrirse. Tu horario y tus ajustes se conservan.":"Install Dayglance "+info.Version+" now? Dayglance will close, update and reopen. Your schedule and settings are kept.";
+   if(MessageBox.Show(this,question,"Dayglance",MessageBoxButton.YesNo,MessageBoxImage.Question)==MessageBoxResult.Yes) InstallUpdate(info);
+  }
+  void InstallUpdate(UpdateInfo info) {
+   Mouse.OverrideCursor=Cursors.Wait;
+   System.Threading.ThreadPool.QueueUserWorkItem(_=> {
+    Exception error=null; try { Updater.Install(info); } catch(Exception ex) { error=ex; }
+    Dispatcher.BeginInvoke(new Action(()=> {
+     Mouse.OverrideCursor=null;
+     if(error!=null) { MessageBox.Show(this,UI.T("The update could not be installed.")+"\n\n"+error.Message,"Dayglance",MessageBoxButton.OK,MessageBoxImage.Error); return; }
+     PersistPosition(); exiting=true; Close(); Application.Current.Shutdown();
+    }));
+   });
+  }
   bool settingsOpen;
   // Settings preview their theme and language on the dialog itself; the main widget only changes after saving.
   void Settings() {
    var w=UI.Dialog(this,"Dayglance settings",520,700); w.LightDismiss=true; var p=new StackPanel { Margin=new Thickness(24,8,24,12) }; var scroller=new ScrollViewer { Content=p,VerticalScrollBarVisibility=ScrollBarVisibility.Auto };
    var settingsShell=new DockPanel(); var tabBar=new Border { Margin=new Thickness(24,4,24,6) }; DockPanel.SetDock(tabBar,Dock.Top); settingsShell.Children.Add(tabBar);
    var footer=new Border { Padding=new Thickness(24,12,24,20),BorderThickness=new Thickness(0,1,0,0) }; DockPanel.SetDock(footer,Dock.Bottom); settingsShell.Children.Add(footer); settingsShell.Children.Add(scroller); w.Content=settingsShell;
-   string themeId=State.Theme,language=State.Language,cardStyle=State.CardStyle,weekHighlight=State.WeekHighlight,tab="appearance",timeFormat=State.TimeFormat; double scale=State.UiScale; bool notifications=State.Notifications,sound=State.Sound,startup=File.Exists(StartupPath),saved=false;
+   string themeId=State.Theme,language=State.Language,cardStyle=State.CardStyle,weekHighlight=State.WeekHighlight,tab="appearance",timeFormat=State.TimeFormat; double scale=State.UiScale; bool autoUpdate=State.AutoUpdateCheck,notifications=State.Notifications,sound=State.Sound,startup=File.Exists(StartupPath),saved=false;
    Choice languageChoice=null; Action render=null;
    Action applyPending=()=> {
     UI.Apply(new State { Theme=themeId,Language=language,CustomThemes=State.CustomThemes,UiScale=scale,TimeFormat=timeFormat });
@@ -458,7 +518,7 @@ namespace Dayglance {
    render=()=> {
     double y=scroller.VerticalOffset; p.Children.Clear();
     // Tabs keep each group short: look & language, schedule display, reminders & startup, data.
-    var tabs=UI.Row(); string[] keys={"appearance","schedule","reminders","data"}; string[] names={"Appearance","Schedule","Reminders","Data"};
+    var tabs=UI.Row(); string[] keys={"appearance","reminders","data"}; string[] names={"Appearance","Reminders","Data & updates"};
     for(int i=0;i<keys.Length;i++) { string key=keys[i]; var b=UI.Button(names[i],()=> { if(tab==key) return; tab=key; render(); scroller.ScrollToVerticalOffset(0); },tab==key); b.Margin=new Thickness(0); b.MinHeight=30; if(tab!=key) b.Background=Brushes.Transparent; tabs.Children.Add(b); }
     tabBar.Child=new Border { Child=tabs,Background=UI.Card,CornerRadius=new CornerRadius(10),Padding=new Thickness(3),HorizontalAlignment=HorizontalAlignment.Left };
     if(tab=="appearance") {
@@ -493,16 +553,14 @@ namespace Dayglance {
      sizeChoice.Changed+=()=> { scale=scales[sizeChoice.SelectedIndex]; applyPending(); }; p.Children.Add(sizeChoice);
      p.Children.Add(section("LANGUAGE"));
      languageChoice=new Choice(); languageChoice.Items.Add("English"); languageChoice.Items.Add("Español"); languageChoice.SelectedIndex=language=="es"?1:0; languageChoice.Changed+=()=> { language=languageChoice.SelectedIndex==1?"es":"en"; applyPending(); }; p.Children.Add(languageChoice);
-    }
-    else if(tab=="schedule") {
-     var formatTitle=section("TIME FORMAT"); ((FrameworkElement)formatTitle).Margin=new Thickness(0,8,0,6); p.Children.Add(formatTitle);
+     p.Children.Add(section("TIME FORMAT"));
      var formatChoice=new Choice(); formatChoice.Items.AddRange(new[]{"24-hour","12-hour (AM/PM)"}); formatChoice.SelectedIndex=timeFormat=="12"?1:0; formatChoice.Changed+=()=> { timeFormat=formatChoice.SelectedIndex==1?"12":"24"; applyPending(); }; p.Children.Add(formatChoice);
      p.Children.Add(section("ACTIVITY CARDS"));
      string[] styles={"stripe","band","full"}; var cardChoice=new Choice(); cardChoice.Items.AddRange(new[]{"Slim color line","Color band","Full color card"}); cardChoice.SelectedIndex=Math.Max(0,Array.IndexOf(styles,cardStyle)); cardChoice.Changed+=()=> { cardStyle=styles[cardChoice.SelectedIndex]; render(); }; p.Children.Add(cardChoice);
      var sampleActivity=new Activity { Id="sample",Title=UI.T("Sample activity"),Color=Palette.Hex(((SolidColorBrush)UI.Accent).Color),Start="09:00",End="10:30",Days=new int[0],Notes=UI.T("Double-click to edit") };
      var sample=DayCard(new Occurrence { Activity=sampleActivity,Start=DateTime.Today.AddHours(9),End=DateTime.Today.AddHours(10.5) },DateTime.Today.AddHours(9.5),cardStyle,false); sample.Margin=new Thickness(0,0,0,4); p.Children.Add(sample);
      p.Children.Add(section("CURRENT ACTIVITY IN WEEK VIEW"));
-     string[] highlights={"line","outline","glow"}; var highlightChoice=new Choice(); highlightChoice.Items.AddRange(new[]{"Time line and dot","Accent outline","Accent outline with glow"}); highlightChoice.SelectedIndex=Math.Max(0,Array.IndexOf(highlights,weekHighlight)); highlightChoice.Changed+=()=> { weekHighlight=highlights[highlightChoice.SelectedIndex]; }; p.Children.Add(highlightChoice);
+     string[] highlights={"line","outline","glow"}; var highlightChoice=new Choice(); highlightChoice.Items.AddRange(new[]{"Time line and dot","Accent outline","Accent outline with glow"}); highlightChoice.SelectedIndex=Math.Max(0,Array.IndexOf(highlights,weekHighlight)); highlightChoice.Changed+=()=> { weekHighlight=highlights[highlightChoice.SelectedIndex]; render(); }; p.Children.Add(highlightChoice); p.Children.Add(WeekHighlightPreview(weekHighlight));
     }
     else if(tab=="reminders") {
      var remindersTitle=section("REMINDERS"); ((FrameworkElement)remindersTitle).Margin=new Thickness(0,8,0,6); p.Children.Add(remindersTitle);
@@ -527,7 +585,23 @@ namespace Dayglance {
        Schedule.MigrateReminders(incoming); ImportState(incoming); saved=true; w.Close();
       } catch(Exception ex) { MessageBox.Show(w,UI.T(ex.Message),UI.T("Import failed")); }
      })); p.Children.Add(row);
-     p.Children.Add(section("STAYS ON THIS PC")); p.Children.Add(UI.Label(Storage.FilePath+"\n"+UI.T("No account, subscriptions, analytics, or network access. Share the app ZIP with friends; your data stays here."),12,UI.Muted));
+     p.Children.Add(section("UPDATES"));
+     p.Children.Add(UI.Label((UI.Language=="es"?"Versión instalada: ":"Installed version: ")+AppInfo.Version,13,UI.Text));
+     var autoSwitch=UI.Switch("Check for updates automatically",autoUpdate); autoSwitch.Checked+=(s,e)=>autoUpdate=true; autoSwitch.Unchecked+=(s,e)=>autoUpdate=false; p.Children.Add(autoSwitch);
+     var updateStatus=UI.Label("",12,UI.Muted); var updateActions=new WrapPanel();
+     Button checkButton=null; checkButton=UI.Button("Check now",()=> {
+      checkButton.IsEnabled=false; updateStatus.Text=UI.T("Checking for updates…"); updateActions.Children.Clear();
+      CheckForUpdates(true,(info,error)=> {
+       checkButton.IsEnabled=true;
+       if(error!=null) { updateStatus.Text=UI.T("Couldn't check for updates.")+" "+error.Message; return; }
+       if(!Updater.IsNewer(info)) { updateStatus.Text=UI.T("You're up to date."); return; }
+       updateStatus.Text=(UI.Language=="es"?"Dayglance "+info.Version+" está disponible.":"Dayglance "+info.Version+" is available.");
+       var install=UI.Button("Install update",()=> { w.Close(); InstallUpdate(info); },true); install.Margin=new Thickness(0,0,6,6); updateActions.Children.Add(install);
+       if(!string.IsNullOrEmpty(info.PageUrl)) { var notes=UI.Button("Release notes",()=> { try { Process.Start(info.PageUrl); } catch {} }); notes.Margin=new Thickness(0,0,6,6); updateActions.Children.Add(notes); }
+      });
+     });
+     checkButton.HorizontalAlignment=HorizontalAlignment.Left; checkButton.Margin=new Thickness(0,0,0,6); p.Children.Add(checkButton); p.Children.Add(updateStatus); p.Children.Add(updateActions);
+     p.Children.Add(section("STAYS ON THIS PC")); p.Children.Add(UI.Label(Storage.FilePath+"\n"+UI.T("No account, subscriptions or analytics. The only network request is the optional update check on GitHub; your schedule stays on this PC."),12,UI.Muted));
     }
     var hint=UI.Label(UI.Language=="es"?"Los cambios se muestran en esta ventana y se aplican al widget al guardar.":"Changes preview in this window and apply to the widget when you save.",11,UI.Muted); hint.Margin=new Thickness(0,0,0,10); hint.TextAlignment=TextAlignment.Center;
     var saveButton=UI.Button("Save preferences",()=> {
@@ -538,7 +612,7 @@ namespace Dayglance {
       }
       if(tab=="appearance" && languageChoice!=null) language=languageChoice.SelectedIndex==1?"es":"en";
       string oldTheme=State.Theme,oldLanguage=State.Language,oldCards=State.CardStyle,oldHighlight=State.WeekHighlight; bool oldNotifications=State.Notifications,oldSound=State.Sound; double oldScale=State.UiScale; string oldFormat=State.TimeFormat;
-      State.Notifications=notifications; State.Sound=sound; State.Theme=themeId; State.CardStyle=cardStyle; State.WeekHighlight=weekHighlight; State.Language=language; State.UiScale=scale; State.TimeFormat=timeFormat;
+      State.Notifications=notifications; State.Sound=sound; State.Theme=themeId; State.CardStyle=cardStyle; State.WeekHighlight=weekHighlight; State.Language=language; State.UiScale=scale; State.TimeFormat=timeFormat; State.AutoUpdateCheck=autoUpdate;
       if(Save()) { saved=true; w.Close(); } else { State.Theme=oldTheme; State.Language=oldLanguage; State.Notifications=oldNotifications; State.Sound=oldSound; State.CardStyle=oldCards; State.WeekHighlight=oldHighlight; State.UiScale=oldScale; State.TimeFormat=oldFormat; }
      } catch(Exception ex) { MessageBox.Show(w,UI.T(ex.Message),UI.T("Could not save preferences")); }
     },true); saveButton.HorizontalAlignment=HorizontalAlignment.Stretch; saveButton.MinHeight=42; saveButton.Margin=new Thickness(0);
@@ -552,7 +626,7 @@ namespace Dayglance {
   public void ImportState(State incoming) {
    Schedule.Validate(incoming); Directory.CreateDirectory(Storage.Folder);
    File.WriteAllText(System.IO.Path.Combine(Storage.Folder,"before-import-"+DateTime.Now.ToString("yyyyMMdd-HHmmssfff")+".json"),Storage.Serializer().Serialize(State));
-   incoming.Pinned=State.Pinned; incoming.Compact=State.Compact; incoming.Left=State.Left; incoming.Top=State.Top; incoming.MiniLeft=State.MiniLeft; incoming.MiniTop=State.MiniTop; incoming.MiniWidth=State.MiniWidth; incoming.MiniHeight=State.MiniHeight; incoming.UiScale=State.UiScale; incoming.TimeFormat=State.TimeFormat; incoming.Notifications=State.Notifications; incoming.Sound=State.Sound; incoming.Theme=State.Theme; incoming.Language=State.Language; incoming.WeekView=State.WeekView; incoming.CardStyle=State.CardStyle; incoming.WindowWidth=State.WindowWidth; incoming.WindowHeight=State.WindowHeight; incoming.WeekHighlight=State.WeekHighlight; incoming.CustomThemes=State.CustomThemes.Concat(incoming.CustomThemes).GroupBy(t=>t.Id).Select(g=>g.First()).ToList();
+   incoming.Pinned=State.Pinned; incoming.Compact=State.Compact; incoming.Left=State.Left; incoming.Top=State.Top; incoming.MiniLeft=State.MiniLeft; incoming.MiniTop=State.MiniTop; incoming.MiniWidth=State.MiniWidth; incoming.MiniHeight=State.MiniHeight; incoming.UiScale=State.UiScale; incoming.TimeFormat=State.TimeFormat; incoming.AutoUpdateCheck=State.AutoUpdateCheck; incoming.Notifications=State.Notifications; incoming.Sound=State.Sound; incoming.Theme=State.Theme; incoming.Language=State.Language; incoming.WeekView=State.WeekView; incoming.CardStyle=State.CardStyle; incoming.WindowWidth=State.WindowWidth; incoming.WindowHeight=State.WindowHeight; incoming.WeekHighlight=State.WeekHighlight; incoming.CustomThemes=State.CustomThemes.Concat(incoming.CustomThemes).GroupBy(t=>t.Id).Select(g=>g.First()).ToList();
    var previous=State; State=incoming; try { Storage.Save(State); } catch { State=previous; throw; }
   }
  }

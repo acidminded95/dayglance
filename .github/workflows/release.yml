@@ -1,0 +1,44 @@
+name: Release
+
+# Push a tag like v2.1.0 (matching source/Version.cs) to build, test and publish a release.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version
+        id: version
+        shell: pwsh
+        run: |
+          $version = (Select-String -Path source/Version.cs -Pattern 'Version="([0-9.]+)"').Matches[0].Groups[1].Value
+          if ('${{ github.ref_type }}' -eq 'tag' -and "v$version" -ne '${{ github.ref_name }}') { throw "Tag ${{ github.ref_name }} does not match Version.cs ($version)" }
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Build and package
+        shell: powershell
+        run: ./source/Package.ps1 -OutputDirectory dist
+
+      - name: Self-test
+        shell: powershell
+        run: |
+          $folder = "dist/Dayglance-${{ steps.version.outputs.version }}"
+          Start-Process -FilePath "$folder/Dayglance.exe" -ArgumentList '--self-test' -Wait
+          $result = Get-Content "$folder/test-results.txt" -Raw
+          Write-Output $result
+          if (-not $result.StartsWith('PASS')) { exit 1 }
+
+      - name: Publish release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/Dayglance-${{ steps.version.outputs.version }}.zip
+          generate_release_notes: true

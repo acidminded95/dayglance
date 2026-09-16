@@ -62,7 +62,7 @@ namespace Dayglance {
   // Glow ring drawn in the adorner layer around an element, so the element itself (and its text) is never rendered through a blur effect.
   public static void GlowAround(FrameworkElement element,double cornerRadius) {
    if(element==null) return; var layer=System.Windows.Documents.AdornerLayer.GetAdornerLayer(element); if(layer==null) { Attention(element); return; }
-   var adorner=new GlowAdorner(element,new CornerRadius(cornerRadius)); layer.Add(adorner);
+   var adorner=new OuterGlowAdorner(element,cornerRadius); layer.Add(adorner);
    var glow=new System.Windows.Media.Effects.DropShadowEffect { Color=((SolidColorBrush)Accent).Color,ShadowDepth=0,BlurRadius=0,Opacity=1 }; adorner.Ring.Effect=glow;
    var ease=new System.Windows.Media.Animation.SineEase { EasingMode=System.Windows.Media.Animation.EasingMode.EaseInOut };
    var blur=new System.Windows.Media.Animation.DoubleAnimation(0,28,TimeSpan.FromMilliseconds(420)) { AutoReverse=true,RepeatBehavior=new System.Windows.Media.Animation.RepeatBehavior(3),EasingFunction=ease };
@@ -98,6 +98,24 @@ namespace Dayglance {
   }
   public static DialogWindow Dialog(Window owner,string title,double width,double height) { return new DialogWindow { Owner=owner,Title=T(title),Width=width*Scale,Height=Math.Min(height*Scale,SystemParameters.WorkArea.Height),MinWidth=Math.Min(width*Scale,SystemParameters.WorkArea.Width),MinHeight=320,WindowStartupLocation=WindowStartupLocation.CenterOwner,Background=Brushes.Transparent,Foreground=Text,FontFamily=new FontFamily("Segoe UI"),ResizeMode=ResizeMode.CanResize,ShowInTaskbar=false }; }
  }
+ // Glow ring whose light only shows outside the adorned element (masked), so it radiates outwards like the week view halo.
+ public class OuterGlowAdorner : System.Windows.Documents.Adorner {
+  const double Pad=36; readonly Grid host; readonly Border ring; readonly double radius;
+  public Border Ring { get { return ring; } }
+  public OuterGlowAdorner(UIElement adorned,double cornerRadius) : base(adorned) {
+   IsHitTestVisible=false; radius=cornerRadius; host=new Grid { IsHitTestVisible=false };
+   ring=new Border { BorderBrush=UI.Accent,BorderThickness=new Thickness(2),CornerRadius=new CornerRadius(cornerRadius),Margin=new Thickness(Pad),IsHitTestVisible=false }; host.Children.Add(ring); AddVisualChild(host);
+  }
+  protected override int VisualChildrenCount { get { return 1; } }
+  protected override Visual GetVisualChild(int index) { return host; }
+  protected override Size MeasureOverride(Size constraint) { var size=AdornedElement.RenderSize; host.Measure(new Size(size.Width+Pad*2,size.Height+Pad*2)); return size; }
+  protected override Size ArrangeOverride(Size finalSize) {
+   var size=AdornedElement.RenderSize; double w=size.Width+Pad*2,h=size.Height+Pad*2;
+   var outside=new CombinedGeometry(GeometryCombineMode.Exclude,new RectangleGeometry(new Rect(0,0,w,h)),new RectangleGeometry(new Rect(Pad+1,Pad+1,Math.Max(0,size.Width-2),Math.Max(0,size.Height-2)),radius,radius));
+   host.OpacityMask=new DrawingBrush(new GeometryDrawing(Brushes.Black,null,outside)) { Stretch=Stretch.None,AlignmentX=AlignmentX.Left,AlignmentY=AlignmentY.Top,ViewboxUnits=BrushMappingMode.Absolute,Viewbox=new Rect(0,0,w,h),ViewportUnits=BrushMappingMode.Absolute,Viewport=new Rect(0,0,w,h) };
+   host.Arrange(new Rect(-Pad,-Pad,w,h)); return finalSize;
+  }
+ }
  public class GlowAdorner : System.Windows.Documents.Adorner {
   readonly Border ring;
   public Border Ring { get { return ring; } }
@@ -130,6 +148,7 @@ namespace Dayglance {
     tray=new Forms.NotifyIcon { Text="Dayglance — your day at a glance",Icon=BrandIcon.Make(),Visible=true }; tray.DoubleClick+=(s,e)=>Restore(); var menu=new Forms.ContextMenuStrip(); menu.Items.Add("Open Dayglance",null,(s,e)=>Restore()); menu.Items.Add("Add activity",null,(s,e)=> { Restore(); Edit(null); }); menu.Items.Add("Quit",null,(s,e)=> { exiting=true; Close(); }); tray.ContextMenuStrip=menu; tray.BalloonTipClicked+=(s,e)=>Restore();
     Closing+=(s,e)=> { PersistPosition(); if(!exiting) { e.Cancel=true; Hide(); } }; Closed+=(s,e)=> { timer.Stop(); tray.Dispose(); };
     timer=new DispatcherTimer { Interval=TimeSpan.FromSeconds(10) }; timer.Tick+=(s,e)=> { Refresh(false); Notify(); }; timer.Start();
+    var updateTimer=new DispatcherTimer { Interval=TimeSpan.FromSeconds(30) }; updateTimer.Tick+=(s,e)=> { updateTimer.Interval=TimeSpan.FromHours(6); CheckForUpdates(false,null); }; updateTimer.Start();
    }
    UI.EnableBorderResize(this); EnableLightDismiss(); EnableHistoryInput(); SetSize(); Refresh(true); UpdateTrayLanguage(); SizeChanged+=(s,e)=> { RememberSize(); QueueGeometrySave(); if(State.WeekView && weekPanel!=null) RenderWeek(); }; LocationChanged+=(s,e)=> { RememberSize(); QueueGeometrySave(); };
   }

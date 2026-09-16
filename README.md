@@ -1,15 +1,21 @@
-# Dayglance 2
+# Dayglance
 
-A free, local Windows schedule widget. English and Spanish. Full source included under the MIT license. No account, payment, network access, or telemetry.
+A free, local Windows schedule widget. English and Spanish. Full source under the MIT license. No account, payment, or telemetry; the only network request is the optional update check against this repository's GitHub releases.
 
-## Open or update
+## Install
 
-1. Quit the running version from its tray icon → **Quit / Salir**. The window's × only hides it.
-2. Extract this ZIP into a permanent folder and run **Dayglance.exe**.
-3. Your existing schedule loads from `%LOCALAPPDATA%\Dayglance\schedule.json`; data is separate from the app folder.
-4. If sign-in startup was enabled, open Settings and save preferences in the new copy so the shortcut points to the new executable.
+1. Download the latest `Dayglance-<version>.zip` from the repository's **Releases** page.
+2. Extract it into a permanent folder you can write to (for example `Documents\Dayglance`) and run **Dayglance.exe**.
+3. Your schedule and settings live in `%LOCALAPPDATA%\Dayglance`, separate from the app folder.
 
-Requires Windows 10/11 with .NET Framework 4.8. No installer or administrator rights. The executable is unsigned. This is a floating desktop window; Windows Show Desktop can hide it.
+Requires Windows 10/11 with .NET Framework 4.8. No installer or administrator rights. The executable is unsigned, so Windows SmartScreen may ask for confirmation the first time.
+
+## Updates
+
+- Dayglance checks GitHub for a newer release shortly after starting and every few hours (turn this off in **Settings → Data & updates**). When one is available, a small card offers to install it; you can also use **Check now** there.
+- Installing downloads the release ZIP, closes Dayglance, replaces the previous app files (tracked in `dayglance-files.txt`), and reopens it. Your schedule is never touched. If anything fails, the previous files are restored and details go to `%LOCALAPPDATA%\Dayglance\update.log`.
+- Manual update: quit from the tray icon (**Quit / Salir**), extract the new ZIP over the old folder and run it again.
+- If sign-in startup was enabled and you moved the app folder, save preferences once so the shortcut points to the new location.
 
 ## Views and controls
 
@@ -64,28 +70,35 @@ Open **Settings / Ajustes**. Its tabs group **Appearance** (theme, text size, la
 
 Use **Settings → Import / Ajustes → Importar** for schedule JSON. Import confirms replacement and saves a timestamped backup first. Local theme, language, notification, and view settings are preserved. Custom themes from the file merge by ID. Export includes activities, notes, completion/reminder history, and custom themes.
 
-The personal `Horario-2027-1.json` is supplied separately, not embedded in this ZIP. Select **Español**, **Horario · paper & sage**, and **Week / Semana** for the image-inspired view. Its activity reminders are off for testing.
+The personal `Horario-2027-1.json` is supplied separately, not embedded in releases. Select **Español**, **Horario · paper & sage**, and **Week / Semana** for the image-inspired view. Its activity reminders are off for testing.
 
-Share this app ZIP with friends: it contains no personal schedule data. Each person has separate local storage. Send exported JSON separately only when you want to share its contents.
+Share the release link or ZIP with friends: it contains no personal schedule data. Each person has separate local storage. Send exported JSON separately only when you want to share its contents.
 
 Each successful save retains the previous file as `schedule.json.bak`. If data is unreadable, the app leaves it untouched. Quit, preserve the damaged file, and restore the `.bak` as `schedule.json` if needed.
 
 ## Inicio rápido en español
 
 1. Cierra la versión anterior desde su icono de bandeja → **Salir**.
-2. Extrae el ZIP y abre **Dayglance.exe**. Se conserva tu horario local.
+2. Descarga el ZIP más reciente desde **Releases**, extráelo en una carpeta permanente y abre **Dayglance.exe**. Se conserva tu horario local; las actualizaciones se instalan desde la propia app.
 3. Pulsa **⚙**, elige **Español**, selecciona un tema y guarda las preferencias.
 4. En **Ajustes → Importar**, abre **Horario-2027-1.json**. Confirma el reemplazo; antes se guardará un respaldo.
-5. Selecciona **Semana**. El icono superior derecho alterna compacto/ampliado; **Ctrl + rueda** cambia el zoom.
+5. Selecciona **Semana**. El botón de mini widget alterna la vista reducida; **Ctrl + rueda** cambia el zoom.
 6. Pulsa **+** para añadir actividades. Los avisos funcionan mientras la app siga abierta, incluso en la bandeja.
 
-## Source and verification
+## Source, builds and releases
 
-`source/Build.ps1` uses the Windows .NET Framework compiler; no NuGet packages or downloads. Optional `-OutputDirectory` writes the build elsewhere. `MakeIcon.ps1` regenerates the executable icon. Use a writable folder.
+`source/Build.ps1` compiles every `.cs` file in `source` with the Windows .NET Framework compiler (no NuGet packages). `-OutputDirectory` writes the build elsewhere; by default it goes to `source\Dayglance.exe`. `MakeIcon.ps1` regenerates the icon.
 
-- `Dayglance.exe --self-test`: schedule, reminder, validation, palette/color-picker math, audio-load and persistence checks.
-- `Dayglance.exe --ui-test`: controls, calendar, extra reminders, themes and theme creator, Spanish, per-view window sizes, narrow week scrolling, backup, zoom and custom notifications.
-- `Dayglance.exe --showcase <schedule.json>`: rendering checks across all six themes, including 24-hour fit and label spacing. Screenshots are written beside the executable.
+- `Dayglance.exe --self-test`: schedule, reminder, validation, palette, clock format, release-version and persistence checks.
+- `Dayglance.exe --ui-test`: controls, editor, themes and theme creator, Spanish, window sizing, mini widget, narrow week scrolling, backup and notifications.
+- `Dayglance.exe --showcase <schedule.json>`: rendering checks across all six themes, with screenshots beside the executable.
 
-Results go to `test-results.txt`, `ui-test-results.txt` and `showcase-results.txt`.
-Tests use isolated data folders.
+Results go to `test-results.txt`, `ui-test-results.txt` and `showcase-results.txt`; tests use isolated data folders.
+
+### Publishing a release
+
+1. Bump `Version` in `source/Version.cs` (e.g. `2.1.1`) and commit on `main`.
+2. Tag and push: `git tag v2.1.1` then `git push origin main v2.1.1`.
+3. The **Release** GitHub Actions workflow builds on Windows, runs the self-test, and publishes `Dayglance-2.1.1.zip` to Releases. Installed copies pick it up automatically.
+
+`source/Package.ps1` produces the same ZIP locally in `dist\`.
