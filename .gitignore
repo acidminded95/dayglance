@@ -1,0 +1,9 @@
+# Build/test outputs
+source/Dayglance.exe
+test-results.txt
+ui-test-results.txt
+showcase-results.txt
+test-data-*/
+ui-test-data-*/
+showcase-data-*/
+*.png
