@@ -14,19 +14,18 @@ namespace Dayglance {
   double weekZoom=1,dayZoom=1,weekColumn=-1;
   DateTime weekFirst;
   bool sizing;
-  // Each view remembers its own window size; defaults are used until the user resizes that view.
+  // Day and week share one window size; the week view adapts its column count (and scrolls) instead of resizing the window.
   void SetSize() {
    var area=SystemParameters.WorkArea; MinWidth=380; MinHeight=340;
-   double width=State.WeekView?State.WeekWidth:State.DayWidth,height=State.WeekView?State.WeekHeight:State.DayHeight;
-   if(width<MinWidth) width=State.WeekView?1200:440; if(height<MinHeight) height=State.WeekView?950:800;
+   double width=State.WindowWidth,height=State.WindowHeight; if(width<MinWidth) width=520; if(height<MinHeight) height=820;
    sizing=true; try { Width=Math.Min(width,area.Width); Height=Math.Min(height,area.Height); } finally { sizing=false; }
    Left=Math.Max(area.Left,Math.Min(Left,area.Right-Width)); Top=Math.Max(area.Top,Math.Min(Top,area.Bottom-Height));
   }
   void RememberSize() {
    if(sizing || WindowState!=WindowState.Normal || ActualWidth<MinWidth-1 || ActualHeight<1) return;
-   if(State.WeekView) { State.WeekWidth=ActualWidth; State.WeekHeight=ActualHeight; } else { State.DayWidth=ActualWidth; State.DayHeight=ActualHeight; }
+   State.WindowWidth=ActualWidth; State.WindowHeight=ActualHeight;
   }
-  public void SetView(bool week) { if(State.WeekView==week) return; RememberSize(); State.WeekView=week; SetSize(); BuildView(); if(!preview) Save(); }
+  public void SetView(bool week) { if(State.WeekView==week) return; RememberSize(); State.WeekView=week; weekColumn=-1; BuildView(); if(!preview) Save(); }
   public void ZoomSchedule(int direction,double anchor) {
    if(!State.WeekView) { dayZoom=Math.Max(.8,Math.Min(1.7,dayZoom*(direction>0?1.1:1/1.1))); list.LayoutTransform=new ScaleTransform(dayZoom,dayZoom); return; }
    double before=weekZoom,previous=weekScroll.VerticalOffset; weekZoom=Math.Max(.65,Math.Min(3,weekZoom*(direction>0?1.15:1/1.15))); RenderWeek(); weekScroll.UpdateLayout(); weekScroll.ScrollToVerticalOffset((previous+anchor)*weekZoom/before-anchor);
@@ -69,7 +68,15 @@ namespace Dayglance {
     if(height>=39) { var time=UI.Label(o.Start.ToString("HH:mm")+"–"+o.End.ToString("HH:mm"),9,UI.Ink(o.Activity.Color)); time.Margin=new Thickness(0); text.Children.Add(time); }
     var card=new Border { Child=text,Width=Math.Max(8,laneWidth-2),Height=height,Padding=new Thickness(4,height<25?1:3,3,1),Background=UI.B(o.Activity.Color),CornerRadius=new CornerRadius(5),BorderBrush=current?UI.Text:UI.B(o.Activity.Color),BorderThickness=new Thickness(current?2:0),Opacity=done?0.58:0.95,ClipToBounds=true,Cursor=Cursors.Hand };
     card.ToolTip=o.Activity.Title+"\n"+o.Start.ToString("ddd HH:mm",UI.Culture)+"–"+o.End.ToString("ddd HH:mm",UI.Culture)+(string.IsNullOrWhiteSpace(o.Activity.Notes)?"":"\n"+o.Activity.Notes)+"\n"+UI.T("Edit activity");
-    card.MouseLeftButtonUp+=(s,e)=>Edit(o.Activity); Canvas.SetLeft(card,d*column+3+block.Lane*laneWidth); Canvas.SetTop(card,block.StartHour*rowHeight+1); canvas.Children.Add(card);
+    card.MouseLeftButtonUp+=(s,e)=> { e.Handled=true; Edit(o.Activity); }; double cardLeft=d*column+3+block.Lane*laneWidth,cardTop=block.StartHour*rowHeight+1;
+    if(current && !done && State.WeekHighlight!="line") {
+     // Accent ring drawn just outside the card so it never covers the title.
+     card.BorderThickness=new Thickness(0);
+     var halo=new Border { Width=card.Width+6,Height=height+6,CornerRadius=new CornerRadius(7),BorderBrush=UI.Accent,BorderThickness=new Thickness(2.5),IsHitTestVisible=false };
+     if(State.WeekHighlight=="glow") halo.Effect=new System.Windows.Media.Effects.DropShadowEffect { Color=((SolidColorBrush)UI.Accent).Color,ShadowDepth=0,BlurRadius=14,Opacity=.95 };
+     Canvas.SetLeft(halo,cardLeft-3); Canvas.SetTop(halo,cardTop-3); Panel.SetZIndex(halo,2); Panel.SetZIndex(card,3); canvas.Children.Add(halo);
+    }
+    Canvas.SetLeft(card,cardLeft); Canvas.SetTop(card,cardTop); canvas.Children.Add(card);
    }
    if(now.Date>=first && now.Date<first.AddDays(7)) {
     double y=now.TimeOfDay.TotalHours*rowHeight, x=(int)now.DayOfWeek*column;
@@ -77,15 +84,27 @@ namespace Dayglance {
     var dot=new Ellipse { Width=8,Height=8,Fill=UI.Accent,IsHitTestVisible=false }; Canvas.SetLeft(dot,x-4); Canvas.SetTop(dot,y-4); canvas.Children.Add(dot);
     var tag=new Border { Background=UI.Accent,CornerRadius=new CornerRadius(3),Padding=new Thickness(2),Child=new TextBlock { Text=now.ToString("HH:mm"),FontSize=10,Foreground=UI.AccentInk },IsHitTestVisible=false }; Canvas.SetTop(tag,y-9); hours.Children.Add(tag);
    }
+   // Empty-slot hover and click: opens the editor for that day at the hovered hour.
+   var slot=new Rectangle { Width=Math.Max(4,column-2),Height=Math.Max(4,rowHeight-2),RadiusX=5,RadiusY=5,Fill=UI.Accent,Opacity=.18,IsHitTestVisible=false,Visibility=Visibility.Collapsed }; Panel.SetZIndex(slot,1); canvas.Children.Add(slot);
+   Func<MouseEventArgs,bool> onGrid=e=>e.OriginalSource==canvas || e.OriginalSource is Line || (e.OriginalSource is Rectangle && e.OriginalSource!=slot);
+   Func<Point,DateTime> slotAt=pt=>first.AddDays(Math.Max(0,Math.Min(6,(int)Math.Floor(pt.X/column)))).AddHours(Math.Max(0,Math.Min(23,(int)Math.Floor(pt.Y/rowHeight))));
+   canvas.MouseMove+=(s,e)=> {
+    var pt=e.GetPosition(canvas); if(!onGrid(e) || pt.Y>=rowHeight*24) { slot.Visibility=Visibility.Collapsed; canvas.Cursor=null; return; }
+    var at=slotAt(pt); Canvas.SetLeft(slot,(at.Date-first).Days*column+1); Canvas.SetTop(slot,at.Hour*rowHeight+1); slot.Visibility=Visibility.Visible; canvas.Cursor=Cursors.Hand;
+   };
+   canvas.MouseLeave+=(s,e)=> { slot.Visibility=Visibility.Collapsed; canvas.Cursor=null; };
+   canvas.MouseLeftButtonUp+=(s,e)=> { var pt=e.GetPosition(canvas); if(e.Handled || !onGrid(e) || pt.Y>=rowHeight*24) return; e.Handled=true; slot.Visibility=Visibility.Collapsed; Edit(null,slotAt(pt)); };
    weekScroll=new ScrollViewer { Content=canvas,VerticalScrollBarVisibility=ScrollBarVisibility.Auto,HorizontalScrollBarVisibility=sliding?ScrollBarVisibility.Auto:ScrollBarVisibility.Disabled }; Grid.SetColumn(weekScroll,1); grid.Children.Add(weekScroll);
    var bodyScroll=weekScroll;
    bodyScroll.ScrollChanged+=(s,e)=> { gutterScroll.ScrollToVerticalOffset(e.VerticalOffset); headScroll.ScrollToHorizontalOffset(e.HorizontalOffset); };
    bodyScroll.ScrollToVerticalOffset(offset);
    if(sliding) {
-    bool recenter=hOffset<0 || Math.Abs(column-weekColumn)>.5 || first!=weekFirst;
+    bool recenter=hOffset<0 || Math.Abs(column-weekColumn)>.01 || first!=weekFirst;
     int focus=now.Date>=first&&now.Date<first.AddDays(7)?(int)now.DayOfWeek:(int)selected.DayOfWeek;
     double target=Math.Max(0,Math.Min(width-visible*column,recenter?(focus+.5)*column-visible*column/2:hOffset));
     bodyScroll.ScrollToHorizontalOffset(target); headScroll.ScrollToHorizontalOffset(target);
+    // Re-apply once layout has measured the new extent, so the offset is not clamped against the old one.
+    Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,new Action(()=> { if(weekScroll!=bodyScroll) return; bodyScroll.ScrollToHorizontalOffset(target); headScroll.ScrollToHorizontalOffset(target); }));
    }
    weekColumn=column; weekFirst=first;
    bodyScroll.PreviewMouseWheel+=(s,e)=> {
@@ -147,7 +166,7 @@ namespace Dayglance {
   // Settings preview their theme and language on the dialog itself; the main widget only changes after saving.
   void Settings() {
    var w=UI.Dialog(this,"Dayglance settings",510,790); var p=new StackPanel { Margin=new Thickness(24) }; var scroller=new ScrollViewer { Content=p,VerticalScrollBarVisibility=ScrollBarVisibility.Auto }; w.Content=scroller;
-   string themeId=State.Theme,language=State.Language,cardStyle=State.CardStyle; bool notifications=State.Notifications,sound=State.Sound,startup=File.Exists(StartupPath),saved=false;
+   string themeId=State.Theme,language=State.Language,cardStyle=State.CardStyle,weekHighlight=State.WeekHighlight; bool notifications=State.Notifications,sound=State.Sound,startup=File.Exists(StartupPath),saved=false;
    Choice languageChoice=null; Action render=null;
    Action applyPending=()=> {
     double y=scroller.VerticalOffset; UI.Apply(new State { Theme=themeId,Language=language,CustomThemes=State.CustomThemes });
@@ -186,6 +205,8 @@ namespace Dayglance {
     string[] styles={"stripe","band","full"}; var cardChoice=new Choice(); cardChoice.Items.AddRange(new[]{"Slim color line","Color band","Full color card"}); cardChoice.SelectedIndex=Math.Max(0,Array.IndexOf(styles,cardStyle)); cardChoice.Changed+=()=> { cardStyle=styles[cardChoice.SelectedIndex]; applyPending(); }; p.Children.Add(cardChoice);
     var sampleActivity=new Activity { Id="sample",Title=UI.T("Sample activity"),Color=Palette.Hex(((SolidColorBrush)UI.Accent).Color),Start="09:00",End="10:30",Days=new int[0],Notes=UI.T("Double-click to edit") };
     var sample=DayCard(new Occurrence { Activity=sampleActivity,Start=DateTime.Today.AddHours(9),End=DateTime.Today.AddHours(10.5) },DateTime.Today.AddHours(9.5),cardStyle,false); sample.Margin=new Thickness(0,0,0,14); p.Children.Add(sample);
+    var highlightTitle=UI.Label("CURRENT ACTIVITY IN WEEK VIEW",11,UI.Muted); highlightTitle.Margin=new Thickness(0,0,0,6); p.Children.Add(highlightTitle);
+    string[] highlights={"line","outline","glow"}; var highlightChoice=new Choice(); highlightChoice.Items.AddRange(new[]{"Time line and dot","Accent outline","Accent outline with glow"}); highlightChoice.SelectedIndex=Math.Max(0,Array.IndexOf(highlights,weekHighlight)); highlightChoice.Changed+=()=> { weekHighlight=highlights[highlightChoice.SelectedIndex]; }; p.Children.Add(highlightChoice);
     p.Children.Add(UI.Label("REMINDERS & STARTUP",11,UI.Muted));
     var notificationSwitch=UI.Switch("Enable activity reminders",notifications); notificationSwitch.Checked+=(s,e)=>notifications=true; notificationSwitch.Unchecked+=(s,e)=>notifications=false;
     var soundSwitch=UI.Switch("Play a sound with reminders",sound); soundSwitch.Checked+=(s,e)=>sound=true; soundSwitch.Unchecked+=(s,e)=>sound=false;
@@ -200,9 +221,9 @@ namespace Dayglance {
        if(startup) { Type t=Type.GetTypeFromProgID("WScript.Shell"); dynamic shell=Activator.CreateInstance(t); dynamic shortcut=shell.CreateShortcut(StartupPath); shortcut.TargetPath=System.Reflection.Assembly.GetExecutingAssembly().Location; shortcut.WorkingDirectory=AppDomain.CurrentDomain.BaseDirectory; shortcut.Description="Dayglance"; shortcut.Save(); System.Runtime.InteropServices.Marshal.FinalReleaseComObject(shortcut); System.Runtime.InteropServices.Marshal.FinalReleaseComObject(shell); }
        else if(File.Exists(StartupPath)) File.Delete(StartupPath);
       }
-      string oldTheme=State.Theme,oldLanguage=State.Language,oldCards=State.CardStyle; bool oldNotifications=State.Notifications,oldSound=State.Sound;
-      State.Notifications=notifications; State.Sound=sound; State.Theme=themeId; State.CardStyle=cardStyle; State.Language=languageChoice.SelectedIndex==1?"es":"en";
-      if(Save()) { saved=true; w.Close(); } else { State.Theme=oldTheme; State.Language=oldLanguage; State.Notifications=oldNotifications; State.Sound=oldSound; State.CardStyle=oldCards; }
+      string oldTheme=State.Theme,oldLanguage=State.Language,oldCards=State.CardStyle,oldHighlight=State.WeekHighlight; bool oldNotifications=State.Notifications,oldSound=State.Sound;
+      State.Notifications=notifications; State.Sound=sound; State.Theme=themeId; State.CardStyle=cardStyle; State.WeekHighlight=weekHighlight; State.Language=languageChoice.SelectedIndex==1?"es":"en";
+      if(Save()) { saved=true; w.Close(); } else { State.Theme=oldTheme; State.Language=oldLanguage; State.Notifications=oldNotifications; State.Sound=oldSound; State.CardStyle=oldCards; State.WeekHighlight=oldHighlight; }
      } catch(Exception ex) { MessageBox.Show(w,UI.T(ex.Message),UI.T("Could not save preferences")); }
     },true));
     foreach(UIElement child in actions.Children) ((FrameworkElement)child).Margin=new Thickness(0,0,6,6);
@@ -228,7 +249,7 @@ namespace Dayglance {
   public void ImportState(State incoming) {
    Schedule.Validate(incoming); Directory.CreateDirectory(Storage.Folder);
    File.WriteAllText(System.IO.Path.Combine(Storage.Folder,"before-import-"+DateTime.Now.ToString("yyyyMMdd-HHmmssfff")+".json"),Storage.Serializer().Serialize(State));
-   incoming.Pinned=State.Pinned; incoming.Compact=State.Compact; incoming.Left=State.Left; incoming.Top=State.Top; incoming.Notifications=State.Notifications; incoming.Sound=State.Sound; incoming.Theme=State.Theme; incoming.Language=State.Language; incoming.WeekView=State.WeekView; incoming.CardStyle=State.CardStyle; incoming.DayWidth=State.DayWidth; incoming.DayHeight=State.DayHeight; incoming.WeekWidth=State.WeekWidth; incoming.WeekHeight=State.WeekHeight; incoming.CustomThemes=State.CustomThemes.Concat(incoming.CustomThemes).GroupBy(t=>t.Id).Select(g=>g.First()).ToList();
+   incoming.Pinned=State.Pinned; incoming.Compact=State.Compact; incoming.Left=State.Left; incoming.Top=State.Top; incoming.Notifications=State.Notifications; incoming.Sound=State.Sound; incoming.Theme=State.Theme; incoming.Language=State.Language; incoming.WeekView=State.WeekView; incoming.CardStyle=State.CardStyle; incoming.WindowWidth=State.WindowWidth; incoming.WindowHeight=State.WindowHeight; incoming.WeekHighlight=State.WeekHighlight; incoming.CustomThemes=State.CustomThemes.Concat(incoming.CustomThemes).GroupBy(t=>t.Id).Select(g=>g.First()).ToList();
    var previous=State; State=incoming; try { Storage.Save(State); } catch { State=previous; throw; }
   }
  }

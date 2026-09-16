@@ -37,6 +37,19 @@ namespace Dayglance {
   public static StackPanel Row() { return new StackPanel { Orientation=Orientation.Horizontal }; }
   public static TextBox Input(string value) { return new TextBox { Text=value??"",FontSize=14,Padding=new Thickness(8),Margin=new Thickness(0,0,0,12),Background=Card,Foreground=Text,BorderBrush=Muted,CaretBrush=Text }; }
   public static CheckBox Check(string text,bool value) { return Switch(text,value); }
+  // Frameless, transparent windows get no native resize border; answer WM_NCHITTEST so every edge and corner resizes.
+  public static void EnableBorderResize(Window window) {
+   window.SourceInitialized+=(s,e)=> {
+    var source=System.Windows.Interop.HwndSource.FromHwnd(new System.Windows.Interop.WindowInteropHelper(window).Handle); if(source==null) return;
+    source.AddHook((IntPtr hwnd,int msg,IntPtr wParam,IntPtr lParam,ref bool handled)=> {
+     if(msg!=0x0084 || window.ResizeMode==ResizeMode.NoResize || window.WindowState!=WindowState.Normal) return IntPtr.Zero;
+     long value=lParam.ToInt64(); var point=window.PointFromScreen(new Point((short)(value&0xFFFF),(short)((value>>16)&0xFFFF)));
+     const double edge=7; bool left=point.X<edge,right=point.X>=window.ActualWidth-edge,top=point.Y<edge,bottom=point.Y>=window.ActualHeight-edge;
+     int hit=top&&left?13:top&&right?14:bottom&&left?16:bottom&&right?17:left?10:right?11:top?12:bottom?15:0;
+     if(hit==0) return IntPtr.Zero; handled=true; return new IntPtr(hit);
+    });
+   };
+  }
   public static DialogWindow Dialog(Window owner,string title,double width,double height) { return new DialogWindow { Owner=owner,Title=T(title),Width=width,Height=Math.Min(height,SystemParameters.WorkArea.Height),MinWidth=width,MinHeight=320,WindowStartupLocation=WindowStartupLocation.CenterOwner,Background=Bg,Foreground=Text,FontFamily=new FontFamily("Segoe UI"),ResizeMode=ResizeMode.CanResize,ShowInTaskbar=false }; }
  }
  public partial class MainWindow : Window {
@@ -61,7 +74,7 @@ namespace Dayglance {
     Closing+=(s,e)=> { if(!exiting) { e.Cancel=true; Hide(); } PersistPosition(); }; Closed+=(s,e)=> { timer.Stop(); tray.Dispose(); };
     timer=new DispatcherTimer { Interval=TimeSpan.FromSeconds(10) }; timer.Tick+=(s,e)=> { Refresh(false); Notify(); }; timer.Start();
    }
-   SetSize(); Refresh(true); UpdateTrayLanguage(); SizeChanged+=(s,e)=> { RememberSize(); if(State.WeekView && weekPanel!=null) RenderWeek(); };
+   UI.EnableBorderResize(this); SetSize(); Refresh(true); UpdateTrayLanguage(); SizeChanged+=(s,e)=> { RememberSize(); if(State.WeekView && weekPanel!=null) RenderWeek(); };
   }
   void BuildView() {
    UI.Apply(State); Background=UI.Bg; Foreground=UI.Text;
@@ -84,7 +97,7 @@ namespace Dayglance {
    var toolbar=new DockPanel { Margin=new Thickness(0,0,0,12) };
    var nav=UI.Row(); nav.VerticalAlignment=VerticalAlignment.Center;
    nav.Children.Add(UI.Icon("\uE76B","Previous",()=> { selected=selected.AddDays(State.WeekView?-7:-1); Refresh(true); }));
-   var todayButton=UI.Button("Today",()=> { selected=DateTime.Today; Refresh(true); }); todayButton.Margin=new Thickness(2,0,2,0); todayButton.MinHeight=30; todayButton.Background=Brushes.Transparent; nav.Children.Add(todayButton);
+   var todayButton=UI.Button("Today",()=> { selected=DateTime.Today; weekColumn=-1; Refresh(true); }); todayButton.Margin=new Thickness(2,0,2,0); todayButton.MinHeight=30; todayButton.Background=Brushes.Transparent; nav.Children.Add(todayButton);
    nav.Children.Add(UI.Icon("\uE76C","Next",()=> { selected=selected.AddDays(State.WeekView?7:1); Refresh(true); }));
    compact=UI.Icon("\uE73F","Compact",ToggleCompact); compact.Margin=new Thickness(6,0,0,0); nav.Children.Add(compact);
    DockPanel.SetDock(nav,Dock.Right); toolbar.Children.Add(nav);
@@ -127,7 +140,7 @@ namespace Dayglance {
    var focusTarget=active.Count>0?active[0]:today.FirstOrDefault(o=>o.Start>now&&!State.Completed.Contains(o.Key));
    if(focusTarget!=null) { string focusKey=focusTarget.Key; heroBox.Cursor=Cursors.Hand; heroBox.ToolTip=UI.T("Show in schedule"); heroBox.MouseLeftButtonUp+=(s,e)=>FocusActivity(focusKey); }
    summary.Text=UI.T("SCHEDULE")+"  /  "+entries.Count+" "+UI.T("ACTIVITIES")+"  ·  "+entries.Count(o=>State.Completed.Contains(o.Key))+" "+UI.T("DONE");
-   if(State.WeekView) { summary.Text=UI.T("Click an activity to edit. Scroll for more hours."); RenderWeek(); return; }
+   if(State.WeekView) { summary.Text=UI.T("Click an activity to edit or an empty slot to add one."); RenderWeek(); return; }
    var offset=scroll.VerticalOffset; list.Children.Clear();
    if(entries.Count==0) { var empty=new StackPanel { Margin=new Thickness(8,15,8,0) }; empty.Children.Add(UI.Label("A fresh page.",20,UI.Text)); empty.Children.Add(UI.Label("Use + Activity to add something, or Manage to edit your weekly routine.",13,UI.Muted)); list.Children.Add(empty); }
    dayCards.Clear();
@@ -145,14 +158,15 @@ namespace Dayglance {
     new ReminderToast(title,detail,Restore,State.Sound);
    } catch(Exception ex) { Debug.WriteLine(ex); }
   }
-  void Edit(Activity activity) {
+  void Edit(Activity activity) { Edit(activity,null); }
+  void Edit(Activity activity,DateTime? slot) {
    var w=UI.Dialog(this,activity==null?"Add activity":"Edit activity",480,850); var panel=new StackPanel { Margin=new Thickness(24) }; w.Content=new ScrollViewer { Content=panel,VerticalScrollBarVisibility=ScrollBarVisibility.Auto };
    panel.Children.Add(UI.Label(activity==null?"A little structure.":"Make it yours.",25,UI.Text)); panel.Children.Add(UI.Label("ACTIVITY NAME",11,UI.Muted)); var title=UI.Input(activity==null?"":activity.Title); title.MaxLength=120; panel.Children.Add(title);
-   var times=UI.Row(); var start=new TimeField(activity==null?"09:00":activity.Start); start.Width=180; var end=new TimeField(activity==null?"10:00":activity.End); end.Width=180; end.Margin=new Thickness(12,0,0,0); panel.Children.Add(UI.Label("START / END  ·  24-HOUR TIME (HH:MM)",11,UI.Muted)); times.Children.Add(start); times.Children.Add(end); panel.Children.Add(times);
+   var times=UI.Row(); var start=new TimeField(activity!=null?activity.Start:slot.HasValue?slot.Value.ToString("HH:mm"):"09:00"); start.Width=180; var end=new TimeField(activity!=null?activity.End:slot.HasValue?slot.Value.AddHours(1).ToString("HH:mm"):"10:00"); end.Width=180; end.Margin=new Thickness(12,0,0,0); panel.Children.Add(UI.Label("START / END  ·  24-HOUR TIME (HH:MM)",11,UI.Muted)); times.Children.Add(start); times.Children.Add(end); panel.Children.Add(times);
    panel.Children.Add(UI.Label("An earlier end time finishes the following day.",11,UI.Muted));
    panel.Children.Add(UI.Label("REPEAT ON  ·  LEAVE EMPTY FOR ONE DATE",11,UI.Muted)); var days=UI.Row(); var checks=new List<CheckBox>(); int[] order={1,2,3,4,5,6,0}; foreach(int d in order) { var c=UI.Chip(UI.Culture.DateTimeFormat.AbbreviatedDayNames[d],activity!=null&&activity.Days.Contains(d)); c.Margin=new Thickness(0,5,5,8); checks.Add(c); days.Children.Add(c); } panel.Children.Add(days);
    var presets=UI.Row(); presets.Children.Add(UI.Button("Every day",()=>checks.ForEach(c=>c.IsChecked=true))); presets.Children.Add(UI.Button("Weekdays",()=> { for(int i=0;i<7;i++) checks[i].IsChecked=i<5; })); presets.Children.Add(UI.Button("Once",()=>checks.ForEach(c=>c.IsChecked=false))); panel.Children.Add(presets);
-   var date=new DateField { SelectedDate=activity!=null&&activity.Days.Length==0?DateTime.ParseExact(activity.Date,"yyyy-MM-dd",CultureInfo.InvariantCulture):selected,Margin=new Thickness(0,10,0,12) }; panel.Children.Add(date); Action updateDate=()=> { date.IsEnabled=!checks.Any(c=>c.IsChecked==true); date.Opacity=date.IsEnabled?1:0.45; }; foreach(var c in checks) { c.Checked+=(s,e)=>updateDate(); c.Unchecked+=(s,e)=>updateDate(); } updateDate();
+   var date=new DateField { SelectedDate=activity!=null&&activity.Days.Length==0?DateTime.ParseExact(activity.Date,"yyyy-MM-dd",CultureInfo.InvariantCulture):slot.HasValue?slot.Value.Date:selected,Margin=new Thickness(0,10,0,12) }; panel.Children.Add(date); Action updateDate=()=> { date.IsEnabled=!checks.Any(c=>c.IsChecked==true); date.Opacity=date.IsEnabled?1:0.45; }; foreach(var c in checks) { c.Checked+=(s,e)=>updateDate(); c.Unchecked+=(s,e)=>updateDate(); } updateDate();
    panel.Children.Add(UI.Label("COLOR",11,UI.Muted)); string color=Palette.Normalize(activity==null?"#A4E9CC":activity.Color)??"#A4E9CC";
    var palette=new[]{"#A4E9CC","#9CCBFF","#B9AAFF","#F1AED1","#FFD18F","#FF9E94"}.Concat(State.Activities.Select(x=>Palette.Normalize(x.Color)).Where(x=>x!=null).OrderBy(x=>x)).Concat(new[]{color}).Distinct().ToList();
    var colors=new WrapPanel { Margin=new Thickness(0,2,0,12) }; var swatchButtons=new List<Button>(); Button custom=null; Action markColor=null;

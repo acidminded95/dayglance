@@ -16,7 +16,7 @@ namespace Dayglance {
   DockPanel layout;
   public new object Content { get { return body.Child; } set { body.Child=(UIElement)value; } }
   public DialogWindow() {
-   WindowStyle=WindowStyle.None; AllowsTransparency=true; KeyDown+=(s,e)=> { if(e.Key==Key.Escape) Close(); };
+   WindowStyle=WindowStyle.None; AllowsTransparency=true; KeyDown+=(s,e)=> { if(e.Key==Key.Escape) Close(); }; UI.EnableBorderResize(this);
    Restyle();
   }
   // Rebuilds the themed frame around the current body using the currently applied UI colors.

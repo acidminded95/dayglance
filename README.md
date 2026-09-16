@@ -15,10 +15,11 @@ Requires Windows 10/11 with .NET Framework 4.8. No installer or administrator ri
 
 - The title bar holds **add**, **manage**, **settings**, **pin**, minimize and hide-to-tray. Hover for labels. Drag the title bar to move the widget; double-click it to toggle compact.
 - Below it, the **Day / Week** switch sits on the left; previous / **Today** / next and the compact/expand toggle sit on the right.
-- Day and week views each **remember their own window size**. Compact/expand changes density, not the window size.
+- Day and week views **share one window size**, and switching views never resizes the window. Drag any edge or corner to resize. Compact/expand changes density, not the window size.
 - The week view shrinks to **3–7 day columns**. With fewer than seven it scrolls horizontally (Shift + wheel, or wheel over the day headings) and keeps today centered while you resize.
 - **Ctrl + mouse wheel** over the schedule zooms. Compact/expand resets zoom.
-- Week view highlights today and shows a live time line. Click a day heading for its day view or an activity to edit it.
+- Week view highlights today and shows a live time line. Click a day heading for its day view, an activity to edit it, or an empty slot to add a one-hour activity starting at that hour. **Today** re-centers the week on today.
+- **Settings → Current activity in week view** shows the running activity with the time line and dot, an accent outline, or an accent outline with glow.
 - Click the **Right now** card (or the upcoming-activity card) to scroll the day list to that activity. It lands first, or second when the cards before and after it also fit.
 - **Settings → Activity cards** picks a slim color line, a color band with times, or a full-color card for the day view.
 - Day view always highlights the actual current activity. The circle button marks that occurrence done; click again to undo.
