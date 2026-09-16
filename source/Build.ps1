@@ -10,6 +10,7 @@ foreach ($reference in $references) { $arguments += '/reference:' + (Join-Path $
 $arguments += @((Join-Path $PSScriptRoot 'Core.cs'),(Join-Path $PSScriptRoot 'Dayglance.cs'),(Join-Path $PSScriptRoot 'Tests.cs'))
 $arguments += @((Join-Path $PSScriptRoot 'Design.cs'),(Join-Path $PSScriptRoot 'Views.cs'))
 $arguments += (Join-Path $PSScriptRoot 'Enhancements.cs')
+$arguments += (Join-Path $PSScriptRoot 'ColorPicker.cs')
 if (Test-Path (Join-Path $PSScriptRoot 'Dayglance.ico')) { $arguments += '/win32icon:' + (Join-Path $PSScriptRoot 'Dayglance.ico') }
 & $compiler @arguments
 if ($LASTEXITCODE -ne 0) { throw 'Compilation failed.' }

@@ -44,6 +44,10 @@ namespace Dayglance {
     var custom=Palette.Generate("Forest","#132C25","#F4AF8C"); Check(Palette.Contrast(custom.Background,custom.Foreground)>=4.5 && Palette.Contrast(custom.Background,custom.Muted)>=4.5,"generated readable text contrast");
     s.CustomThemes.Add(custom); s.Theme=custom.Id; Storage.Save(s); round=Storage.Read(Storage.FilePath); Check(round.Theme==custom.Id && round.CustomThemes.Single().Accent=="#F4AF8C","custom theme JSON roundtrip");
     Check(Palette.Suggestions("#F4AF8C").Distinct().Count()==4,"color suggestions derive varied accents");
+    Check(Palette.Hex(Palette.FromHsv(0,0,0))=="#000000" && Palette.Normalize("f4af8c")=="#F4AF8C" && Palette.Normalize("#abc")=="#AABBCC" && Palette.Normalize("#12345")==null,"hex normalization and HSV");
+    double hh,ss,vv; Palette.ToHsv(Palette.Parse("#F4AF8C"),out hh,out ss,out vv); Check(Palette.Hex(Palette.FromHsv(hh,ss,vv))=="#F4AF8C","HSV round trip");
+    Check(Palette.Contrast(Palette.Readable("#335533","#101010",3),"#101010")>=3 && Palette.Contrast(Palette.Readable("#DDEEDD","#FAFAFA",3),"#FAFAFA")>=3,"readable accent adjustment");
+    Check(Palette.Ideas("#F4AF8C").All(i=>Palette.Contrast(i.Background,i.Foreground)>=4.5 && Palette.Contrast(i.Background,i.Accent)>=3),"theme ideas are readable");
     Chime.Prepare(); Check(true,"custom PCM chime loads without Windows system sound");
     File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"test-results.txt"),"PASS: "+count+" schedule, reminder, and validation checks.");
    } catch(Exception ex) { File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"test-results.txt"),ex.ToString()); Environment.ExitCode=1; }
@@ -81,7 +85,7 @@ namespace Dayglance {
     Check(w.WindowStyle==WindowStyle.None && w.AllowsTransparency,"main window has no native frame");
     app.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle,new Action(()=> {
      var dialog=app.Windows.Cast<Window>().First(x=>x!=w);
-     app.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle,new Action(()=> { var creator=app.Windows.Cast<Window>().First(x=>x!=w&&x!=dialog); creator.UpdateLayout(); var fields=Descendants<TextBox>(creator).ToList(); fields[0].Text="My forest"; fields[1].Text="#132C25"; fields[2].Text="#F4AF8C"; Capture(creator,"custom-theme-preview"); Click(creator,"Guardar tema"); }));
+     app.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle,new Action(()=> { var creator=app.Windows.Cast<Window>().First(x=>x!=w&&x!=dialog); creator.UpdateLayout(); Descendants<TextBox>(creator).First().Text="My forest"; var colors=Descendants<ColorField>(creator).ToList(); Check(colors.Count==4,"theme creator exposes four colors"); colors[0].Value="#132C25"; colors[1].Value="#F4AF8C"; Capture(creator,"custom-theme-preview"); Click(creator,"Guardar tema"); }));
      Click(dialog,"Crear tema…"); Click(dialog,"Guardar preferencias");
     })); Click(w,"Ajustes"); Check(w.State.Theme.StartsWith("custom-") && w.State.CustomThemes.Count==1,"custom theme created and applied");
     using(var icon=BrandIcon.Make()) Check(icon.Width==32,"themed tray icon renders"); var toast=new ReminderToast(UI.T("Notification preview"),UI.T("Your reminder will look like this."),()=>{},false); toast.UpdateLayout(); Capture(toast,"notification-preview"); Check(toast.AllowsTransparency && toast.WindowStyle==WindowStyle.None,"themed notification has no native frame"); toast.Close();

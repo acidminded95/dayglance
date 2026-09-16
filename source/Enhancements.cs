@@ -34,7 +34,7 @@ namespace Dayglance {
    Children.Add(hours); var colon=UI.Label(":",18,UI.Muted); colon.Margin=new Thickness(0,6,5,0); Children.Add(colon); Children.Add(minutes); Value=value;
   }
  }
- public static class Palette {
+ public static partial class Palette {
   public static string Hex(Color c) { return "#"+c.R.ToString("X2")+c.G.ToString("X2")+c.B.ToString("X2"); }
   public static Color Parse(string text) { if(!System.Text.RegularExpressions.Regex.IsMatch(text??"","^#[0-9a-fA-F]{6}$")) throw new Exception("Use a hex color such as #FF8C24."); return (Color)ColorConverter.ConvertFromString(text); }
   static double Channel(byte b) { double v=b/255.0; return v<=0.04045?v/12.92:Math.Pow((v+0.055)/1.055,2.4); }
@@ -43,8 +43,12 @@ namespace Dayglance {
   public static Color Mix(Color a,Color b,double amount) { return Color.FromRgb((byte)(a.R*(1-amount)+b.R*amount),(byte)(a.G*(1-amount)+b.G*amount),(byte)(a.B*(1-amount)+b.B*amount)); }
   public static string TextFor(string background) { return Contrast(background,"#FFFFFF")>Contrast(background,"#151515")?"#FFFFFF":"#151515"; }
   public static Theme Generate(string name,string background,string accent) {
-   var bg=Parse(background); Parse(accent); var fg=Parse(TextFor(background)); bool dark=Light(bg)<.3; var surface=Mix(bg,dark?Colors.White:Colors.White,dark?.055:.45); string muted=Hex(Mix(bg,fg,.7)); if(Contrast(background,muted)<4.5) muted=Hex(fg);
-   return new Theme("custom-"+Guid.NewGuid().ToString("N"),name,Hex(bg),Hex(surface),Hex(fg),muted,Hex(Parse(accent)),Hex(Mix(bg,Parse(accent),.14)),Hex(Mix(bg,fg,.24)));
+   var bg=Parse(background); bool dark=Light(bg)<.3; return Generate(name,background,Hex(Mix(bg,Colors.White,dark?.055:.45)),TextFor(background),accent);
+  }
+  public static Theme Generate(string name,string background,string surface,string foreground,string accent) {
+   var bg=Parse(background); var fg=Parse(foreground); var ac=Parse(accent); var card=Parse(surface);
+   string muted=Hex(Mix(bg,fg,.7)); if(Contrast(background,muted)<4.5) muted=Hex(fg);
+   return new Theme("custom-"+Guid.NewGuid().ToString("N"),name,Hex(bg),Hex(card),Hex(fg),muted,Hex(ac),Hex(Mix(bg,ac,.14)),Hex(Mix(bg,fg,.24)));
   }
   public static string[] Suggestions(string accent) {
    var c=Parse(accent); var draw=System.Drawing.Color.FromArgb(c.R,c.G,c.B); double h=draw.GetHue(),s=Math.Max(.3,draw.GetSaturation()),l=Math.Max(.35,Math.Min(.65,draw.GetBrightness())); return new[]{-30.0,30,150,180}.Select(delta=>Hsl((h+delta+360)%360,s,l)).ToArray();
@@ -56,20 +60,70 @@ namespace Dayglance {
   }
  }
  public partial class MainWindow {
-  void CreateTheme(Window owner,Action<Theme> saved) {
-   var window=UI.Dialog(owner,"Create a theme",470,660); var p=new StackPanel { Margin=new Thickness(22,10,22,22) }; window.Content=new ScrollViewer { Content=p,VerticalScrollBarVisibility=ScrollBarVisibility.Auto };
-   p.Children.Add(UI.Label("Theme name",12,UI.Muted)); var name=UI.Input(UI.T("My theme")); name.MaxLength=40; p.Children.Add(name);
-   var original=UI.AvailableThemes(State).First(t=>t.Id==State.Theme);
-   p.Children.Add(UI.Label("Background",12,UI.Muted)); var bg=UI.Input(original.Background); p.Children.Add(bg); p.Children.Add(UI.Label("Accent color",12,UI.Muted)); var accent=UI.Input(original.Accent); p.Children.Add(accent);
-   var previewBox=new Border { Padding=new Thickness(16),CornerRadius=new CornerRadius(12),Margin=new Thickness(0,0,0,14) }; p.Children.Add(previewBox);
-   p.Children.Add(UI.Label("Suggested accents",12,UI.Muted)); var suggestions=UI.Row(); p.Children.Add(suggestions); var guidance=UI.Label("",12,UI.Muted); guidance.Margin=new Thickness(0,12,0,12); p.Children.Add(guidance);
-   Action update=()=> {
-    try { var theme=Palette.Generate(name.Text,bg.Text,accent.Text); var sample=new StackPanel(); sample.Children.Add(UI.Label(UI.T("RIGHT NOW"),10,UI.B(theme.Muted))); sample.Children.Add(UI.Label(UI.T("Make it yours."),23,UI.B(theme.Foreground))); var action=UI.Button("+",()=>{}); action.Background=UI.B(theme.Accent); action.Foreground=UI.Ink(theme.Accent); action.HorizontalAlignment=HorizontalAlignment.Left; sample.Children.Add(action); previewBox.Background=UI.B(theme.Background); previewBox.Child=sample;
-     suggestions.Children.Clear(); foreach(string hex in Palette.Suggestions(accent.Text)) { var b=UI.Button("●",()=>accent.Text=hex); b.Background=UI.B(hex); b.Foreground=UI.Ink(hex); b.ToolTip=hex; b.Width=65; suggestions.Children.Add(b); }
-     guidance.Text=UI.T("Palette generated for readable text and harmonious surfaces.")+"\n"+(UI.Language=="es"?"Contraste del texto: ":"Text contrast: ")+Palette.Contrast(theme.Background,theme.Foreground).ToString("0.0")+":1. "+UI.T("At least 4.5:1 is recommended for small text.");
+  // Theme creator: four user-controlled colors (background, cards, text, accent) with live preview,
+  // one-click palette ideas, per-color suggestions and contrast guidance. Derived colors (highlight,
+  // secondary text, lines) are generated from those four.
+  void CreateTheme(Window owner,Theme editing,Action<Theme> saved) {
+   var window=UI.Dialog(owner,editing==null?"Create a theme":"Edit theme",540,780); var p=new StackPanel { Margin=new Thickness(22,6,22,22) }; window.Content=new ScrollViewer { Content=p,VerticalScrollBarVisibility=ScrollBarVisibility.Auto };
+   var basis=editing??UI.AvailableThemes(State).FirstOrDefault(t=>t.Id==State.Theme)??UI.Themes[0];
+   p.Children.Add(UI.Label("Theme name",12,UI.Muted)); var name=UI.Input(editing==null?UI.T("My theme"):editing.Name); name.MaxLength=40; p.Children.Add(name);
+   var previewBox=new Border { Padding=new Thickness(14),CornerRadius=new CornerRadius(12),Margin=new Thickness(0,0,0,14),BorderThickness=new Thickness(1) }; p.Children.Add(previewBox);
+   var ideasTitle=UI.Label("Start from an idea",12,UI.Muted); p.Children.Add(ideasTitle); var ideas=new WrapPanel { Margin=new Thickness(0,0,0,10) }; p.Children.Add(ideas);
+   var fieldGrid=new Grid { Margin=new Thickness(0,4,0,0) }; fieldGrid.ColumnDefinitions.Add(new ColumnDefinition()); fieldGrid.ColumnDefinitions.Add(new ColumnDefinition { Width=new GridLength(14) }); fieldGrid.ColumnDefinitions.Add(new ColumnDefinition());
+   for(int i=0;i<4;i++) { fieldGrid.RowDefinitions.Add(new RowDefinition { Height=GridLength.Auto }); fieldGrid.RowDefinitions.Add(new RowDefinition { Height=GridLength.Auto }); }
+   var bg=new ColorField(basis.Background); var surface=new ColorField(basis.Surface); var text=new ColorField(basis.Foreground); var accent=new ColorField(basis.Accent);
+   var linked=UI.Switch("Match cards and text to the background",editing==null); bool linking=false;
+   Action<string,UIElement,int,int,Action> place=(label,field,row,column,suggest)=> {
+    var head=new DockPanel(); var title=UI.Label(label,12,UI.Muted); title.Margin=new Thickness(0,4,0,2);
+    if(suggest!=null) { var link=new TextBlock { Text=UI.T("Suggest"),FontSize=11,Foreground=UI.Accent,Cursor=Cursors.Hand,Margin=new Thickness(0,4,0,2),TextDecorations=TextDecorations.Underline }; link.MouseLeftButtonUp+=(s,e)=>suggest(); DockPanel.SetDock(link,Dock.Right); head.Children.Add(link); }
+    head.Children.Add(title); Grid.SetRow(head,row*2); Grid.SetColumn(head,column); fieldGrid.Children.Add(head); Grid.SetRow(field,row*2+1); Grid.SetColumn(field,column); fieldGrid.Children.Add(field);
+   };
+   place("Background",bg,0,0,null);
+   place("Accent color",accent,0,2,()=> { try { accent.Value=Palette.Readable(accent.Value,bg.Value,3.2); } catch {} });
+   place("Cards",surface,1,0,()=> { try { linking=true; surface.Value=Palette.SuggestSurface(bg.Value); } catch {} finally { linking=false; } });
+   place("Text",text,1,2,()=> { try { linking=true; text.Value=Palette.SuggestText(bg.Value); } catch {} finally { linking=false; } });
+   p.Children.Add(fieldGrid); p.Children.Add(linked);
+   p.Children.Add(UI.Label("Suggested accents",12,UI.Muted)); var suggestions=new WrapPanel(); p.Children.Add(suggestions);
+   var guidance=UI.Label("",12,UI.Muted); guidance.Margin=new Thickness(0,12,0,12); p.Children.Add(guidance);
+   Action update=null;
+   Action<Palette.ThemeIdea> useIdea=idea=> { linking=true; try { bg.Value=idea.Background; surface.Value=idea.Surface; text.Value=idea.Foreground; accent.Value=idea.Accent; } finally { linking=false; } update(); };
+   update=()=> {
+    try {
+     var theme=Palette.Generate(name.Text,bg.Value,surface.Value,text.Value,accent.Value);
+     // Mini widget preview built from the generated theme only.
+     var sample=new StackPanel(); var top=new DockPanel(); var plus=new Border { Width=26,Height=26,CornerRadius=new CornerRadius(7),Background=UI.B(theme.Accent),Child=new TextBlock { Text="+",FontSize=16,Foreground=UI.Ink(theme.Accent),HorizontalAlignment=HorizontalAlignment.Center,VerticalAlignment=VerticalAlignment.Center } }; DockPanel.SetDock(plus,Dock.Right); top.Children.Add(plus);
+     var brand=UI.Label("◉  dayglance",14,UI.B(theme.Foreground)); brand.Margin=new Thickness(0); brand.FontWeight=FontWeights.SemiBold; top.Children.Add(brand); sample.Children.Add(top);
+     var hp=new StackPanel(); hp.Children.Add(UI.Label(UI.T("RIGHT NOW"),10,UI.B(theme.Accent))); var heading=UI.Label(UI.T("Make it yours."),18,UI.B(theme.Foreground)); heading.Margin=new Thickness(0,0,0,2); hp.Children.Add(heading); hp.Children.Add(UI.Label("09:00 – 10:00",11,UI.B(theme.Muted)));
+     sample.Children.Add(new Border { Child=hp,Background=UI.B(theme.Hero),CornerRadius=new CornerRadius(10),Padding=new Thickness(12),Margin=new Thickness(0,10,0,8) });
+     var cardRow=new Grid(); cardRow.ColumnDefinitions.Add(new ColumnDefinition { Width=new GridLength(8) }); cardRow.ColumnDefinitions.Add(new ColumnDefinition()); cardRow.Children.Add(new Border { Width=3,CornerRadius=new CornerRadius(2),Background=UI.B(theme.Accent),HorizontalAlignment=HorizontalAlignment.Left });
+     var cardText=new StackPanel(); var cardTitle=UI.Label(UI.T("Sample activity"),13,UI.B(theme.Foreground)); cardTitle.Margin=new Thickness(0); cardText.Children.Add(cardTitle); var cardTime=UI.Label("10:30 – 11:15",11,UI.B(theme.Muted)); cardTime.Margin=new Thickness(0); cardText.Children.Add(cardTime); Grid.SetColumn(cardText,1); cardRow.Children.Add(cardText);
+     sample.Children.Add(new Border { Child=cardRow,Background=UI.B(theme.Surface),BorderBrush=UI.B(theme.Line),BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(10),Padding=new Thickness(10) });
+     previewBox.Background=UI.B(theme.Background); previewBox.BorderBrush=UI.B(theme.Line); previewBox.Child=sample;
+     ideas.Children.Clear();
+     foreach(var idea in Palette.Ideas(theme.Accent)) {
+      var current=idea; var strip=UI.Row(); foreach(string hex in new[]{idea.Background,idea.Surface,idea.Foreground,idea.Accent}) strip.Children.Add(new Border { Width=18,Height=22,Background=UI.B(hex) });
+      var tileContent=new StackPanel(); tileContent.Children.Add(new Border { Child=strip,CornerRadius=new CornerRadius(6),ClipToBounds=true,BorderBrush=UI.Line,BorderThickness=new Thickness(1) }); var ideaName=UI.Label(idea.Name,11,UI.Muted); ideaName.Margin=new Thickness(0,4,0,0); ideaName.TextAlignment=TextAlignment.Center; tileContent.Children.Add(ideaName);
+      var tile=new Border { Child=tileContent,Margin=new Thickness(0,0,10,6),Cursor=Cursors.Hand,ToolTip=UI.T("Use this palette") }; tile.MouseLeftButtonUp+=(s,e)=>useIdea(current); ideas.Children.Add(tile);
+     }
+     var surprise=UI.Button("Surprise me",()=> { var pool=Palette.Ideas(Palette.Random()); useIdea(pool[new Random().Next(pool.Count)]); }); surprise.VerticalAlignment=VerticalAlignment.Top; ideas.Children.Add(surprise);
+     suggestions.Children.Clear();
+     foreach(string hex in Palette.AccentIdeas(theme.Background,theme.Accent)) { string choice=hex; var b=UI.Button(hex==theme.Accent?"✓":"",()=>accent.Value=choice); b.Background=UI.B(hex); b.Foreground=UI.Ink(hex); b.ToolTip=hex; b.Width=46; b.Margin=new Thickness(0,0,6,6); suggestions.Children.Add(b); }
+     Func<double,double,string> rate=(value,min)=>value.ToString("0.0")+":1 "+(value>=min?"✓":"⚠");
+     guidance.Text=(UI.Language=="es"?"Texto sobre fondo: ":"Text on background: ")+rate(Palette.Contrast(theme.Background,theme.Foreground),4.5)+"   ·   "+(UI.Language=="es"?"Texto sobre tarjetas: ":"Text on cards: ")+rate(Palette.Contrast(theme.Surface,theme.Foreground),4.5)+"\n"+(UI.Language=="es"?"Acento sobre fondo: ":"Accent on background: ")+rate(Palette.Contrast(theme.Background,theme.Accent),3)+"\n"+UI.T("At least 4.5:1 is recommended for small text.");
+     foreach(var f in new[]{bg,surface,text,accent}) f.Swatches=new[]{theme.Background,theme.Surface,theme.Foreground,theme.Accent,theme.Hero,theme.Muted}.Concat(Palette.AccentIdeas(theme.Background,theme.Accent)).ToList();
     } catch(Exception ex) { guidance.Text=UI.T(ex.Message); }
-   }; bg.TextChanged+=(s,e)=>update(); accent.TextChanged+=(s,e)=>update(); update();
-   var buttons=UI.Row(); buttons.Children.Add(UI.Button("Save theme",()=> { try { if(string.IsNullOrWhiteSpace(name.Text)||name.Text.Length>40) throw new Exception("Choose a name (1–40 characters)."); if(State.CustomThemes.Count>=24) throw new Exception("Up to 24 custom themes are supported."); var theme=Palette.Generate(name.Text.Trim(),bg.Text.Trim(),accent.Text.Trim()); saved(theme); window.Close(); } catch(Exception ex) { guidance.Text=UI.T(ex.Message); } },true)); buttons.Children.Add(UI.Button("Cancel",()=>window.Close())); p.Children.Add(buttons); window.ShowDialog();
+   };
+   bg.Changed+=v=> { if(linked.IsChecked==true && !linking) { linking=true; try { surface.Value=Palette.SuggestSurface(v); text.Value=Palette.SuggestText(v); } finally { linking=false; } } update(); };
+   surface.Changed+=v=> { if(!linking) linked.IsChecked=false; update(); };
+   text.Changed+=v=> { if(!linking) linked.IsChecked=false; update(); };
+   accent.Changed+=v=>update(); name.TextChanged+=(s,e)=>update(); update();
+   var buttons=UI.Row(); buttons.Children.Add(UI.Button("Save theme",()=> {
+    try {
+     if(string.IsNullOrWhiteSpace(name.Text)||name.Text.Trim().Length>40) throw new Exception("Choose a name (1–40 characters).");
+     if(editing==null && State.CustomThemes.Count>=24) throw new Exception("Up to 24 custom themes are supported.");
+     var theme=Palette.Generate(name.Text.Trim(),bg.Value,surface.Value,text.Value,accent.Value); if(editing!=null) theme.Id=editing.Id; saved(theme); window.Close();
+    } catch(Exception ex) { guidance.Text=UI.T(ex.Message); }
+   },true)); buttons.Children.Add(UI.Button("Cancel",()=>window.Close())); p.Children.Add(buttons); window.ShowDialog();
   }
  }
  public static class BrandIcon {
