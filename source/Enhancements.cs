@@ -36,7 +36,7 @@ namespace Dayglance {
    set { var time=Schedule.Time(value); hours.SelectedIndex=time.Hours; string minute=time.Minutes.ToString("00"); if(!minutes.Items.Contains(minute)) { minutes.Items.Add(minute); minutes.Items.Sort(); } minutes.SelectedIndex=minutes.Items.IndexOf(minute); }
   }
   public TimeField(string value) {
-   Orientation=Orientation.Horizontal; hours.Width=78; minutes.Width=78;
+   Orientation=Orientation.Horizontal; hours.Width=UI.Hour12?108:78; minutes.Width=78; hours.Display=h=>UI.Hour12?UI.HourLabel(int.Parse(h)):h; minutes.Display=m=>m;
    hours.Items.AddRange(Enumerable.Range(0,24).Select(n=>n.ToString("00"))); minutes.Items.AddRange(Enumerable.Range(0,12).Select(n=>(n*5).ToString("00")));
    Children.Add(hours); var colon=UI.Label(":",18,UI.Muted); colon.Margin=new Thickness(0,6,5,0); Children.Add(colon); Children.Add(minutes); Value=value;
   }
@@ -136,12 +136,20 @@ namespace Dayglance {
  public static class BrandIcon {
   [DllImport("user32.dll")] static extern bool DestroyIcon(IntPtr handle);
   public static System.Drawing.Icon Make() {
-   using(var bmp=new System.Drawing.Bitmap(32,32,System.Drawing.Imaging.PixelFormat.Format32bppArgb)) using(var g=System.Drawing.Graphics.FromImage(bmp)) using(var pen=new System.Drawing.Pen(System.Drawing.ColorTranslator.FromHtml(UI.Accent.ToString()),3)) {
-    g.SmoothingMode=System.Drawing.Drawing2D.SmoothingMode.AntiAlias; g.Clear(System.Drawing.Color.Transparent); using(var disc=new System.Drawing.SolidBrush(System.Drawing.ColorTranslator.FromHtml(UI.Bg.ToString()))) g.FillEllipse(disc,1,1,30,30); g.DrawEllipse(pen,4,4,24,24); g.DrawLine(pen,16,8,16,16); g.DrawLine(pen,16,16,22,19); var handle=bmp.GetHicon(); try { using(var icon=System.Drawing.Icon.FromHandle(handle)) return (System.Drawing.Icon)icon.Clone(); } finally { DestroyIcon(handle); }
+   using(var bmp=new System.Drawing.Bitmap(32,32,System.Drawing.Imaging.PixelFormat.Format32bppArgb)) using(var g=System.Drawing.Graphics.FromImage(bmp))
+   using(var disc=new System.Drawing.SolidBrush(System.Drawing.ColorTranslator.FromHtml(Palette.Hex(((SolidColorBrush)UI.Accent).Color))))
+   using(var pen=new System.Drawing.Pen(System.Drawing.ColorTranslator.FromHtml(Palette.Hex(((SolidColorBrush)UI.Bg).Color)),3.2f)) {
+    g.SmoothingMode=System.Drawing.Drawing2D.SmoothingMode.AntiAlias; g.PixelOffsetMode=System.Drawing.Drawing2D.PixelOffsetMode.HighQuality; g.Clear(System.Drawing.Color.Transparent);
+    pen.StartCap=System.Drawing.Drawing2D.LineCap.Round; pen.EndCap=System.Drawing.Drawing2D.LineCap.Round; pen.LineJoin=System.Drawing.Drawing2D.LineJoin.Round;
+    g.FillEllipse(disc,1,1,30,30); g.DrawLines(pen,new[]{new System.Drawing.PointF(16,7.5f),new System.Drawing.PointF(16,16),new System.Drawing.PointF(21.5f,19.5f)});
+    var handle=bmp.GetHicon(); try { using(var icon=System.Drawing.Icon.FromHandle(handle)) return (System.Drawing.Icon)icon.Clone(); } finally { DestroyIcon(handle); }
    }
   }
   public static UIElement Visual() {
-   var canvas=new Canvas { Width=38,Height=38,Margin=new Thickness(0,0,12,0) }; canvas.Children.Add(new Ellipse { Width=32,Height=32,Stroke=UI.Accent,StrokeThickness=3,Margin=new Thickness(3) }); canvas.Children.Add(new Line { X1=19,Y1=10,X2=19,Y2=19,Stroke=UI.Accent,StrokeThickness=3 }); canvas.Children.Add(new Line { X1=19,Y1=19,X2=27,Y2=23,Stroke=UI.Accent,StrokeThickness=3 }); return canvas;
+   var canvas=new Canvas { Width=38,Height=38,Margin=new Thickness(0,0,12,0) };
+   canvas.Children.Add(new Ellipse { Width=34,Height=34,Fill=UI.Accent,Margin=new Thickness(2) });
+   var hands=new System.Windows.Shapes.Path { Data=Geometry.Parse("M19,9.5 L19,19 L25.5,23"),Stroke=UI.Bg,StrokeThickness=3.4,StrokeStartLineCap=PenLineCap.Round,StrokeEndLineCap=PenLineCap.Round,StrokeLineJoin=PenLineJoin.Round };
+   canvas.Children.Add(hands); return canvas;
   }
  }
  public static class Chime {
@@ -156,11 +164,18 @@ namespace Dayglance {
  }
  public class ReminderToast : Window {
   static List<ReminderToast> visible=new List<ReminderToast>();
+  // Minimal reminder card: brand row with a small close button, title, and detail (time range and notes). Clicking anywhere else opens Dayglance.
   public ReminderToast(string title,string detail,Action open,bool sound) {
-   Width=370*UI.Scale; SizeToContent=SizeToContent.Height; WindowStyle=WindowStyle.None; AllowsTransparency=true; ResizeMode=ResizeMode.NoResize; ShowInTaskbar=false; ShowActivated=false; Topmost=true; Background=Brushes.Transparent;
-   var panel=new StackPanel(); var top=new DockPanel(); var dismiss=UI.Button("×",()=>Close()); dismiss.ToolTip=UI.T("Dismiss"); DockPanel.SetDock(dismiss,Dock.Right); top.Children.Add(dismiss); top.Children.Add(BrandIcon.Visual()); var brand=UI.Label("dayglance",14,UI.Text); brand.VerticalAlignment=VerticalAlignment.Center; top.Children.Add(brand); panel.Children.Add(top);
-   panel.Children.Add(UI.Label(title,20,UI.Text)); panel.Children.Add(UI.Label(detail,13,UI.Muted)); panel.Children.Add(UI.Button("Open Dayglance",()=> { open(); Close(); },true));
-   Content=new Border { LayoutTransform=new ScaleTransform(UI.Scale,UI.Scale),Child=panel,Background=UI.Hero,BorderBrush=UI.Accent,BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(14),Padding=new Thickness(18) };
+   Width=340*UI.Scale; SizeToContent=SizeToContent.Height; WindowStyle=WindowStyle.None; AllowsTransparency=true; ResizeMode=ResizeMode.NoResize; ShowInTaskbar=false; ShowActivated=false; Topmost=true; Background=Brushes.Transparent;
+   var panel=new StackPanel(); var top=new DockPanel { Margin=new Thickness(0,0,0,6) };
+   var dismiss=UI.Icon("\uE8BB","Dismiss",()=>Close()); dismiss.Width=26; dismiss.Height=26; dismiss.FontSize=10; dismiss.Foreground=UI.Muted; dismiss.VerticalAlignment=VerticalAlignment.Center; DockPanel.SetDock(dismiss,Dock.Right); top.Children.Add(dismiss);
+   var mark=(FrameworkElement)BrandIcon.Visual(); mark.Margin=new Thickness(0); top.Children.Add(new Viewbox { Width=18,Height=18,Child=mark,Margin=new Thickness(0,0,8,0),VerticalAlignment=VerticalAlignment.Center });
+   top.Children.Add(new TextBlock { Text="dayglance",FontSize=12,Foreground=UI.Muted,VerticalAlignment=VerticalAlignment.Center }); panel.Children.Add(top);
+   panel.Children.Add(new TextBlock { Text=title,FontSize=18,FontWeight=FontWeights.SemiBold,Foreground=UI.Text,TextWrapping=TextWrapping.Wrap });
+   if(!string.IsNullOrWhiteSpace(detail)) panel.Children.Add(new TextBlock { Text=detail,FontSize=12,Foreground=UI.Muted,TextWrapping=TextWrapping.Wrap,Margin=new Thickness(0,3,0,0),MaxHeight=120,TextTrimming=TextTrimming.CharacterEllipsis });
+   var card=new Border { LayoutTransform=new ScaleTransform(UI.Scale,UI.Scale),Child=panel,Background=UI.Hero,BorderBrush=UI.Accent,BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(14),Padding=new Thickness(16,10,10,14),Cursor=Cursors.Hand,ToolTip=UI.T("Open Dayglance") };
+   card.MouseLeftButtonUp+=(s,e)=> { if(e.Handled) return; open(); Close(); };
+   Content=card;
    while(visible.Count>=3) visible[0].Close(); visible.Add(this); Closed+=(s,e)=> { visible.Remove(this); Place(); };
    var timer=new DispatcherTimer { Interval=TimeSpan.FromSeconds(18) }; timer.Tick+=(s,e)=> { timer.Stop(); Close(); }; Closed+=(s,e)=>timer.Stop(); Loaded+=(s,e)=>Place(); Show(); timer.Start(); if(sound) Chime.Play();
   }

@@ -74,6 +74,20 @@ namespace Dayglance {
    fade.Completed+=(s,e)=> { try { layer.Remove(adorner); } catch {} };
    adorner.Ring.BeginAnimation(UIElement.OpacityProperty,fade); glow.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.BlurRadiusProperty,blur);
   }
+  // Darkens elements with a black veil in the adorner layer for the length of an attention pulse, fading in and out.
+  public static void Dim(IEnumerable<FrameworkElement> elements,double cornerRadius) {
+   foreach(var element in elements) {
+    var layer=System.Windows.Documents.AdornerLayer.GetAdornerLayer(element); if(layer==null) continue;
+    var veil=new Border { Background=Brushes.Black,CornerRadius=new CornerRadius(cornerRadius),IsHitTestVisible=false,Opacity=0 }; var adorner=new GlowAdorner(element,veil); layer.Add(adorner);
+    var ease=new System.Windows.Media.Animation.SineEase { EasingMode=System.Windows.Media.Animation.EasingMode.EaseInOut }; var fade=new System.Windows.Media.Animation.DoubleAnimationUsingKeyFrames();
+    fade.KeyFrames.Add(new System.Windows.Media.Animation.EasingDoubleKeyFrame(0,System.Windows.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.Zero)));
+    fade.KeyFrames.Add(new System.Windows.Media.Animation.EasingDoubleKeyFrame(.55,System.Windows.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(450)),ease));
+    fade.KeyFrames.Add(new System.Windows.Media.Animation.EasingDoubleKeyFrame(.55,System.Windows.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(2000))));
+    fade.KeyFrames.Add(new System.Windows.Media.Animation.EasingDoubleKeyFrame(0,System.Windows.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(2600)),ease));
+    var owner=layer; var added=adorner; fade.Completed+=(s,e)=> { try { owner.Remove(added); } catch {} };
+    veil.BeginAnimation(UIElement.OpacityProperty,fade);
+   }
+  }
   // Fades an element in while sliding it from (dx,dy) to its place.
   public static void SlideIn(FrameworkElement element,double dx,double dy) {
    if(element==null) return; var ease=new System.Windows.Media.Animation.CubicEase { EasingMode=System.Windows.Media.Animation.EasingMode.EaseOut }; var duration=TimeSpan.FromMilliseconds(420);
@@ -87,6 +101,7 @@ namespace Dayglance {
  public class GlowAdorner : System.Windows.Documents.Adorner {
   readonly Border ring;
   public Border Ring { get { return ring; } }
+  public GlowAdorner(UIElement adorned,Border child) : base(adorned) { IsHitTestVisible=false; ring=child; AddVisualChild(ring); }
   public GlowAdorner(UIElement adorned,CornerRadius radius) : base(adorned) { IsHitTestVisible=false; ring=new Border { BorderBrush=UI.Accent,BorderThickness=new Thickness(2),CornerRadius=radius,IsHitTestVisible=false }; AddVisualChild(ring); }
   protected override int VisualChildrenCount { get { return 1; } }
   protected override Visual GetVisualChild(int index) { return ring; }
@@ -187,7 +202,7 @@ namespace Dayglance {
   }
   public void Refresh(bool force) {
    if(settingsOpen && !force) return;
-   DateTime now=DateTime.Now; if(selected==lastToday) selected=now.Date; lastToday=now.Date; clockLabel.Text=now.ToString("ddd d MMM  ·  HH:mm",UI.Culture).ToUpperInvariant();
+   DateTime now=DateTime.Now; if(selected==lastToday) selected=now.Date; lastToday=now.Date; clockLabel.Text=now.ToString("ddd d MMM",UI.Culture)+"  ·  "+UI.Clock(now).ToUpperInvariant();
    var today=Schedule.ForDay(State,now.Date); var active=today.Where(o=>o.Start<=now && o.End>now && !State.Completed.Contains(o.Key)).ToList();
    var entries=Schedule.ForDay(State,selected); var sig=selected.ToString("O")+now.ToString("yyyyMMddHHmm")+State.Completed.Count+State.Activities.Count;
    if(!force && signature==sig) return; signature=sig;
@@ -197,13 +212,13 @@ namespace Dayglance {
    dayLabel.Text=State.WeekView?Schedule.WeekStart(selected).ToString("d MMM",UI.Culture)+" – "+Schedule.WeekStart(selected).AddDays(6).ToString("d MMM yyyy",UI.Culture):selected==now.Date?UI.T("Today"):selected.ToString("ddd, d MMM",UI.Culture);
    hero.Children.Clear(); var hp=new StackPanel(); hp.Children.Add(UI.Label(active.Count>0?"RIGHT NOW" : "ROOM TO BREATHE",10,UI.Accent));
    if(active.Count>0) {
-    var current=active[0]; hp.Children.Add(UI.Label(current.Activity.Title,24,UI.Text)); hp.Children.Add(UI.Label(current.Start.ToString("HH:mm")+" – "+current.End.ToString("HH:mm")+"  ·  "+Math.Ceiling((current.End-now).TotalMinutes)+UI.T(" min left"),12,UI.Muted));
+    var current=active[0]; hp.Children.Add(UI.Label(current.Activity.Title,24,UI.Text)); hp.Children.Add(UI.Label(UI.Clock(current.Start)+" – "+UI.Clock(current.End)+"  ·  "+Math.Ceiling((current.End-now).TotalMinutes)+UI.T(" min left"),12,UI.Muted));
     var bar=new ProgressBar { Minimum=0,Maximum=100,Value=(now-current.Start).TotalSeconds/(current.End-current.Start).TotalSeconds*100,Height=4,Foreground=UI.B(current.Activity.Color),Background=UI.Line,BorderThickness=new Thickness(0),Margin=new Thickness(0,6,0,8) }; hp.Children.Add(bar);
     if(active.Count>1) hp.Children.Add(UI.Label(UI.T("Also now: ")+string.Join(", ",active.Skip(1).Select(o=>o.Activity.Title)),11,UI.Muted));
    } else {
     hp.Children.Add(UI.Label(State.Activities.Count==0?"Make room for your day.":"You’re between activities.",22,UI.Text));
     Occurrence next=null; for(int i=0;i<8 && next==null;i++) next=Schedule.ForDay(State,now.Date.AddDays(i)).FirstOrDefault(o=>o.Start>now&&!State.Completed.Contains(o.Key));
-    hp.Children.Add(UI.Label(next==null?"Add an activity to give your day a little structure.":UI.T("Next: ")+next.Activity.Title+" · "+(next.Start.Date==now.Date?"":next.Start.ToString("ddd ",UI.Culture))+next.Start.ToString("HH:mm"),12,UI.Muted));
+    hp.Children.Add(UI.Label(next==null?"Add an activity to give your day a little structure.":UI.T("Next: ")+next.Activity.Title+" · "+(next.Start.Date==now.Date?"":next.Start.ToString("ddd ",UI.Culture))+UI.Clock(next.Start),12,UI.Muted));
    }
    var heroBox=UI.Box(hp,UI.Hero,new Thickness(0,12,0,0)); hero.Children.Add(heroBox);
    var focusTarget=active.Count>0?active[0]:today.FirstOrDefault(o=>o.Start>now&&!State.Completed.Contains(o.Key));
@@ -235,7 +250,9 @@ namespace Dayglance {
     foreach(var reminder in due) State.Reminded.Add(reminder.Key);
     if(!Save()) { foreach(var reminder in due) State.Reminded.Remove(reminder.Key); return; }
     string title=due.Count==1?due[0].Occurrence.Activity.Title:UI.T("Activities coming up");
-    string detail=string.Join("\n",due.Take(4).Select(r=>r.Occurrence.Activity.Title+" · "+UI.T("Starts")+" "+r.Occurrence.Start.ToString("ddd d MMM HH:mm",UI.Culture)));
+    Func<Occurrence,string> span=o=>(o.Start.Date==DateTime.Today?"":o.Start.ToString("ddd d MMM",UI.Culture)+"  ·  ")+UI.Clock(o.Start)+" – "+UI.Clock(o.End);
+    var single=due[0].Occurrence;
+    string detail=due.Count==1?span(single)+(string.IsNullOrWhiteSpace(single.Activity.Notes)?"":"\n"+single.Activity.Notes.Trim()):string.Join("\n",due.Take(4).Select(r=>r.Occurrence.Activity.Title+"  ·  "+span(r.Occurrence)));
     new ReminderToast(title,detail,Restore,State.Sound);
    } catch(Exception ex) { Debug.WriteLine(ex); }
   }
@@ -243,7 +260,7 @@ namespace Dayglance {
   void Edit(Activity activity,DateTime? slot,DateTime? slotEnd=null) {
    var w=UI.Dialog(this,activity==null?"Add activity":"Edit activity",480,850); w.LightDismiss=true; var panel=new StackPanel { Margin=new Thickness(24) }; w.Content=new ScrollViewer { Content=panel,VerticalScrollBarVisibility=ScrollBarVisibility.Auto };
    panel.Children.Add(UI.Label(activity==null?"A little structure.":"Make it yours.",25,UI.Text)); panel.Children.Add(UI.Label("ACTIVITY NAME",11,UI.Muted)); var title=UI.Input(activity==null?"":activity.Title); title.MaxLength=120; panel.Children.Add(title);
-   var times=UI.Row(); var start=new TimeField(activity!=null?activity.Start:slot.HasValue?slot.Value.ToString("HH:mm"):"09:00"); start.Width=180; var end=new TimeField(activity!=null?activity.End:slot.HasValue?(slotEnd.HasValue?slotEnd.Value:slot.Value.AddHours(1)).ToString("HH:mm"):"10:00"); end.Width=180; end.Margin=new Thickness(12,0,0,0); panel.Children.Add(UI.Label("START / END  ·  24-HOUR TIME (HH:MM)",11,UI.Muted)); times.Children.Add(start); times.Children.Add(end); panel.Children.Add(times);
+   var times=UI.Row(); var start=new TimeField(activity!=null?activity.Start:slot.HasValue?slot.Value.ToString("HH:mm"):"09:00");  var end=new TimeField(activity!=null?activity.End:slot.HasValue?(slotEnd.HasValue?slotEnd.Value:slot.Value.AddHours(1)).ToString("HH:mm"):"10:00");  end.Margin=new Thickness(12,0,0,0); panel.Children.Add(UI.Label(UI.Hour12?"START / END":"START / END  ·  24-HOUR TIME (HH:MM)",11,UI.Muted)); times.Children.Add(start); times.Children.Add(end); panel.Children.Add(times);
    panel.Children.Add(UI.Label("An earlier end time finishes the following day.",11,UI.Muted));
    panel.Children.Add(UI.Label("REPEAT ON  ·  LEAVE EMPTY FOR ONE DATE",11,UI.Muted)); var days=UI.Row(); var checks=new List<CheckBox>(); int[] order={1,2,3,4,5,6,0}; foreach(int d in order) { var c=UI.Chip(UI.Culture.DateTimeFormat.AbbreviatedDayNames[d],activity!=null&&activity.Days.Contains(d)); c.Margin=new Thickness(0,5,5,8); checks.Add(c); days.Children.Add(c); } panel.Children.Add(days);
    var presets=UI.Row(); presets.Children.Add(UI.Button("Every day",()=>checks.ForEach(c=>c.IsChecked=true))); presets.Children.Add(UI.Button("Weekdays",()=> { for(int i=0;i<7;i++) checks[i].IsChecked=i<5; })); presets.Children.Add(UI.Button("Once",()=>checks.ForEach(c=>c.IsChecked=false))); panel.Children.Add(presets);
@@ -285,7 +302,7 @@ namespace Dayglance {
   }
   void Manage() {
    var w=UI.Dialog(this,"Manage schedule",540,560); w.LightDismiss=true; var root=new DockPanel { Margin=new Thickness(24) }; w.Content=root; var heading=UI.Label("Your routine",26,UI.Text); DockPanel.SetDock(heading,Dock.Top); root.Children.Add(heading); var all=new StackPanel(); root.Children.Add(new ScrollViewer { Content=all,VerticalScrollBarVisibility=ScrollBarVisibility.Auto });
-   Action fill=null; fill=()=> { all.Children.Clear(); if(State.Activities.Count==0) all.Children.Add(UI.Label("No activities yet. Close this window and choose + Activity.",14,UI.Muted)); foreach(var a in State.Activities.OrderBy(a=>a.Start).ToList()) { var p=new StackPanel(); p.Children.Add(UI.Label(a.Title,17,UI.Text)); p.Children.Add(UI.Label(a.Start+"–"+a.End+"  ·  "+(a.Days.Length==0?a.Date:string.Join(", ",a.Days.Select(d=>UI.Culture.DateTimeFormat.AbbreviatedDayNames[d]))),12,UI.Muted)); var r=UI.Row(); r.Children.Add(UI.Button("Edit",()=> { Edit(a); fill(); })); r.Children.Add(UI.Button("Delete",()=> { if(MessageBox.Show(w,UI.Language=="es"?"¿Eliminar «"+a.Title+"» y todas sus repeticiones?":"Delete ‘"+a.Title+"’ and all its future repeats?",UI.T("Delete activity"),MessageBoxButton.YesNo,MessageBoxImage.Question)==MessageBoxResult.Yes) { State.Activities.Remove(a); if(!Save()) State.Activities.Add(a); Refresh(true); fill(); } })); p.Children.Add(r); all.Children.Add(UI.Box(p,UI.Card,new Thickness(0,6,0,6))); } }; fill(); w.ShowDialog();
+   Action fill=null; fill=()=> { all.Children.Clear(); if(State.Activities.Count==0) all.Children.Add(UI.Label("No activities yet. Close this window and choose + Activity.",14,UI.Muted)); foreach(var a in State.Activities.OrderBy(a=>a.Start).ToList()) { var p=new StackPanel(); p.Children.Add(UI.Label(a.Title,17,UI.Text)); p.Children.Add(UI.Label(UI.ClockText(a.Start)+" – "+UI.ClockText(a.End)+"  ·  "+(a.Days.Length==0?a.Date:string.Join(", ",a.Days.Select(d=>UI.Culture.DateTimeFormat.AbbreviatedDayNames[d]))),12,UI.Muted)); var r=UI.Row(); r.Children.Add(UI.Button("Edit",()=> { Edit(a); fill(); })); r.Children.Add(UI.Button("Delete",()=> { if(MessageBox.Show(w,UI.Language=="es"?"¿Eliminar «"+a.Title+"» y todas sus repeticiones?":"Delete ‘"+a.Title+"’ and all its future repeats?",UI.T("Delete activity"),MessageBoxButton.YesNo,MessageBoxImage.Question)==MessageBoxResult.Yes) { State.Activities.Remove(a); if(!Save()) State.Activities.Add(a); Refresh(true); fill(); } })); p.Children.Add(r); all.Children.Add(UI.Box(p,UI.Card,new Thickness(0,6,0,6))); } }; fill(); w.ShowDialog();
   }
   string StartupPath { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup),"Dayglance.lnk"); } }
 

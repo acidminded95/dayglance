@@ -3,12 +3,11 @@ $bitmap = New-Object System.Drawing.Bitmap 64,64
 $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
 $graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
 $graphics.Clear([System.Drawing.Color]::Transparent)
-$disc = New-Object System.Drawing.SolidBrush ([System.Drawing.ColorTranslator]::FromHtml('#11151D'))
-$graphics.FillEllipse($disc,1,1,62,62)
-$pen = New-Object System.Drawing.Pen ([System.Drawing.ColorTranslator]::FromHtml('#A4E9CC')),5
-$graphics.DrawEllipse($pen,10,10,44,44)
-$graphics.DrawLine($pen,32,18,32,32)
-$graphics.DrawLine($pen,32,32,42,38)
+$disc = New-Object System.Drawing.SolidBrush ([System.Drawing.ColorTranslator]::FromHtml('#A4E9CC'))
+$graphics.FillEllipse($disc,2,2,60,60)
+$pen = New-Object System.Drawing.Pen ([System.Drawing.ColorTranslator]::FromHtml('#11151D')),6
+$pen.StartCap = [System.Drawing.Drawing2D.LineCap]::Round; $pen.EndCap = [System.Drawing.Drawing2D.LineCap]::Round; $pen.LineJoin = [System.Drawing.Drawing2D.LineJoin]::Round
+$graphics.DrawLines($pen,[System.Drawing.PointF[]]@((New-Object System.Drawing.PointF 32,15),(New-Object System.Drawing.PointF 32,32),(New-Object System.Drawing.PointF 44.5,39.5)))
 $stream = New-Object System.IO.MemoryStream
 $bitmap.Save($stream,[System.Drawing.Imaging.ImageFormat]::Png)
 $bytes = $stream.ToArray()

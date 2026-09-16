@@ -21,7 +21,7 @@ Requires Windows 10/11 with .NET Framework 4.8. No installer or administrator ri
 - **Ctrl + mouse wheel** over the schedule zooms.
 - Week view highlights today and shows a live time line. Click a day heading for its day view, an activity to edit it, or an empty slot to add a one-hour activity starting at that hour. **Today** re-centers the week on today.
 - **Settings → Current activity in week view** shows the running activity with the time line and dot, an accent outline, or a pulsing accent glow.
-- The running activity is always outlined in the accent color. Click the **Right now** card (or the upcoming-activity card) to scroll to it; it lands first, or second when its neighbors also fit, and pulses briefly.
+- The running activity is always outlined in the accent color. Click the **Right now** card (or the upcoming-activity card) to scroll to it; it lands first, or second when its neighbors also fit, pulses briefly and the other cards dim during the pulse.
 - Week view shows a compact **Right now / Up next** card beside the week range. Clicking it scrolls to the activity, pulses its glow and briefly dims everything else in the week.
 - In day view, hover the space between two activities with free time to reveal **+ start – end**; click to add a one-hour activity at the start of that gap (shorter if the gap is shorter).
 - **Back / forward:** after jumping between views or days (day headings, Day/Week, Today), use the mouse back/forward buttons or Alt + ← / →.
@@ -39,7 +39,7 @@ Select repeat-day pills or Every day, Weekdays, or Once. The custom calendar is 
 
 ## Themes and language
 
-Open **Settings / Ajustes**. Its tabs group **Appearance** (theme, text size, language), **Schedule** (card style, current-activity highlight), **Reminders** (reminders, sound, startup) and **Data** (import/export). The settings window previews your choices, including **Test reminder**, and the widget changes only when you save preferences. Closing without saving discards the preview.
+Open **Settings / Ajustes**. Its tabs group **Appearance** (theme, text size, language), **Schedule** (12- or 24-hour time, card style, current-activity highlight), **Reminders** (reminders, sound, startup) and **Data** (import/export). The settings window previews your choices, including **Test reminder**, and the widget changes only when you save preferences. Closing without saving discards the preview.
 
 - **Midnight mint:** charcoal and mint.
 - **Terracotta:** clay, cream, and soft greens.
@@ -56,7 +56,7 @@ Open **Settings / Ajustes**. Its tabs group **Appearance** (theme, text size, la
 - **Additional reminder** adds one earlier reminder, set as any mix of days, hours and minutes before the start (1 minute to 30 days).
 - Older schedules that used "N minutes before" are converted automatically: the reminder moves to the additional reminder and the main one fires at the start.
 - Settings controls global reminders and sound. **Test reminder / Probar aviso** uses the currently applied theme and the sound switch's current setting.
-- Notifications are custom Dayglance popups with a matching clock icon and optional original two-note chime. They dismiss after 18 seconds and can reopen the app.
+- Notifications are small Dayglance cards showing the activity, its start and end time and any notes, with an optional two-note chime. Click anywhere on a card to open the app, or × to dismiss; they close by themselves after 18 seconds.
 - Keep the app running, including in the tray. Checks run approximately every 10 seconds. Missed primary reminders catch up while the activity remains active. Extra advance reminders have a 15-minute catch-up window and expire at the activity's start. Completed occurrences do not remind. Saved history prevents duplicates after restart.
 - Custom popups are not saved in Windows Notification Center and do not automatically follow Windows Do Not Disturb. Disable reminders in the app when needed. Sound also depends on Windows volume/output settings.
 
