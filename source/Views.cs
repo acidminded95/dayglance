@@ -63,7 +63,8 @@ namespace Dayglance {
    if(geometryTimer==null) { geometryTimer=new System.Windows.Threading.DispatcherTimer { Interval=TimeSpan.FromSeconds(1.5) }; geometryTimer.Tick+=(s,e)=> { geometryTimer.Stop(); if(!settingsOpen) Save(); }; }
    geometryTimer.Stop(); geometryTimer.Start();
   }
-  // Small always-available widget: current activity (or next), progress and what's after it.
+  Grid miniHost; int miniCapacity=-1; double miniPrimaryHeight=90;
+  // Small always-available widget: the current (or next) activity, plus neighbouring activities when the window is tall enough.
   void BuildMini() {
    weekPanel=null; weekScroll=null;
    var root=new DockPanel { Margin=new Thickness(12,6,8,10),LastChildFill=true,Background=Brushes.Transparent };
@@ -71,45 +72,85 @@ namespace Dayglance {
    root.MouseLeftButtonDown+=(s,e)=> { if(e.ClickCount==2) ToggleCompact(); else if(e.LeftButton==MouseButtonState.Pressed) DragMove(); };
    var header=new DockPanel { Margin=new Thickness(0,0,0,4) };
    var tools=UI.Row(); tools.VerticalAlignment=VerticalAlignment.Center;
-   pin=UI.Icon("\uE718","Pin on top",()=> { State.Pinned=!State.Pinned; Topmost=State.Pinned; Save(); Refresh(true); }); pin.Width=28; pin.Height=28; tools.Children.Add(pin);
-   compact=UI.Icon("\uE740","Expand",ToggleCompact); compact.Width=28; compact.Height=28; tools.Children.Add(compact);
-   var hide=UI.Icon("\uE8BB","Hide to tray",()=>Close()); hide.Width=28; hide.Height=28; hide.FontSize=11; tools.Children.Add(hide);
+   pin=UI.Icon("","Pin on top",()=> { State.Pinned=!State.Pinned; Topmost=State.Pinned; Save(); Refresh(true); }); pin.Width=28; pin.Height=28; tools.Children.Add(pin);
+   compact=UI.Icon("","Expand",ToggleCompact); compact.Width=28; compact.Height=28; tools.Children.Add(compact);
+   var hide=UI.Icon("","Hide to tray",()=>Close()); hide.Width=28; hide.Height=28; hide.FontSize=11; tools.Children.Add(hide);
    DockPanel.SetDock(tools,Dock.Right); header.Children.Add(tools);
    var brand=UI.Row(); brand.VerticalAlignment=VerticalAlignment.Center; var mark=(FrameworkElement)BrandIcon.Visual(); mark.Margin=new Thickness(0); brand.Children.Add(new Viewbox { Width=14,Height=14,Child=mark,Margin=new Thickness(0,0,7,0) });
    clockLabel=UI.Label("",11,UI.Muted); clockLabel.Margin=new Thickness(0); clockLabel.VerticalAlignment=VerticalAlignment.Center; brand.Children.Add(clockLabel); header.Children.Add(brand);
    DockPanel.SetDock(header,Dock.Top); root.Children.Add(header);
-   hero=new StackPanel { VerticalAlignment=VerticalAlignment.Center }; root.Children.Add(hero);
+   hero=new StackPanel { VerticalAlignment=VerticalAlignment.Center }; miniHost=new Grid { ClipToBounds=true,Background=Brushes.Transparent }; miniHost.Children.Add(hero); root.Children.Add(miniHost);
+   miniCapacity=-1; miniHost.SizeChanged+=(s,e)=> { if(MiniCapacity()!=miniCapacity) Refresh(true); };
    Refresh(true);
   }
-  void RefreshMini(System.Collections.Generic.List<Occurrence> today,System.Collections.Generic.List<Occurrence> active,DateTime now) {
+  const double MiniRowHeight=50; // secondary card height including its margins
+  int MiniCapacity() { if(miniHost==null || miniHost.ActualHeight<1) return 0; return Math.Max(0,Math.Min(4,(int)Math.Floor((miniHost.ActualHeight-miniPrimaryHeight-2)/MiniRowHeight))); }
+  // Card with a hover "Edit" pill; clicking the card itself opens the full schedule at that activity.
+  FrameworkElement MiniCard(Occurrence o,bool primary,bool running,DateTime now) {
+   var body=new StackPanel(); Border card;
+   if(primary) {
+    card=new Border { Background=UI.Hero,CornerRadius=new CornerRadius(10),Padding=new Thickness(12,8,12,10),Child=body };
+    var eyebrow=new DockPanel(); var dot=new Ellipse { Width=8,Height=8,Fill=UI.B(o.Activity.Color),Margin=new Thickness(0,0,6,0),VerticalAlignment=VerticalAlignment.Center }; DockPanel.SetDock(dot,Dock.Left); eyebrow.Children.Add(dot);
+    eyebrow.Children.Add(new TextBlock { Text=UI.T(running?"RIGHT NOW":"UP NEXT"),FontSize=9,Foreground=UI.Accent,VerticalAlignment=VerticalAlignment.Center }); body.Children.Add(eyebrow);
+    body.Children.Add(new TextBlock { Text=o.Activity.Title,FontSize=17,FontWeight=FontWeights.SemiBold,Foreground=UI.Text,TextTrimming=TextTrimming.CharacterEllipsis,Margin=new Thickness(0,2,54,0) });
+    string detail=running?o.Start.ToString("HH:mm")+" – "+o.End.ToString("HH:mm")+"  ·  "+Math.Ceiling((o.End-now).TotalMinutes)+UI.T(" min left"):(o.Start.Date==now.Date?"":o.Start.ToString("ddd ",UI.Culture))+o.Start.ToString("HH:mm")+" – "+o.End.ToString("HH:mm");
+    body.Children.Add(new TextBlock { Text=detail,FontSize=11,Foreground=UI.Muted,TextTrimming=TextTrimming.CharacterEllipsis });
+    if(running) body.Children.Add(new ProgressBar { Minimum=0,Maximum=100,Value=(now-o.Start).TotalSeconds/(o.End-o.Start).TotalSeconds*100,Height=3,Foreground=UI.B(o.Activity.Color),Background=UI.Line,BorderThickness=new Thickness(0),Margin=new Thickness(0,6,0,0) });
+   } else {
+    // Neighbouring activities: outline only, on the window background, so the current card stays dominant.
+    bool done=State.Completed.Contains(o.Key)||o.End<=now;
+    card=new Border { Background=Brushes.Transparent,BorderBrush=UI.Accent,BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(9),Padding=new Thickness(10,4,10,5),Margin=new Thickness(0,3,0,3),Child=body,Opacity=done?.55:.85 };
+    var titleRow=new DockPanel(); var dot=new Ellipse { Width=7,Height=7,Fill=UI.B(o.Activity.Color),Margin=new Thickness(0,0,6,0),VerticalAlignment=VerticalAlignment.Center }; DockPanel.SetDock(dot,Dock.Left); titleRow.Children.Add(dot);
+    titleRow.Children.Add(new TextBlock { Text=o.Activity.Title,FontSize=13,FontWeight=FontWeights.SemiBold,Foreground=UI.Text,TextTrimming=TextTrimming.CharacterEllipsis,Margin=new Thickness(0,0,48,0) }); body.Children.Add(titleRow);
+    body.Children.Add(new TextBlock { Text=(o.Start.Date==now.Date?"":o.Start.ToString("ddd ",UI.Culture))+o.Start.ToString("HH:mm")+" – "+o.End.ToString("HH:mm"),FontSize=11,Foreground=UI.Muted,Margin=new Thickness(13,0,0,0) });
+   }
+   var holder=new Grid { Cursor=Cursors.Hand,ToolTip=UI.T("Open schedule") }; holder.Children.Add(card);
+   var edit=new Border { Background=UI.Accent,CornerRadius=new CornerRadius(8),Padding=new Thickness(8,2,9,3),HorizontalAlignment=HorizontalAlignment.Right,VerticalAlignment=VerticalAlignment.Top,Margin=new Thickness(0,primary?8:7,8,0),Visibility=Visibility.Hidden,Cursor=Cursors.Hand,ToolTip=UI.T("Edit activity"),
+    Child=new TextBlock { Text="✎ "+UI.T("Edit"),FontSize=11,FontWeight=FontWeights.SemiBold,Foreground=UI.AccentInk } };
+   edit.MouseLeftButtonDown+=(s,e)=>e.Handled=true; edit.MouseLeftButtonUp+=(s,e)=> { e.Handled=true; Edit(o.Activity); };
+   holder.Children.Add(edit);
+   holder.MouseEnter+=(s,e)=>edit.Visibility=Visibility.Visible; holder.MouseLeave+=(s,e)=>edit.Visibility=Visibility.Hidden;
+   holder.MouseLeftButtonDown+=(s,e)=>e.Handled=true;
+   holder.MouseLeftButtonUp+=(s,e)=> { e.Handled=true; ExpandTo(o); };
+   return holder;
+  }
+  void ExpandTo(Occurrence o) {
+   string key=o.Key; DateTime day=o.Start.Date;
+   ToggleCompact(()=> { if(State.WeekView) FocusWeekNow(); else if(day==DateTime.Today) FocusActivity(key,true); });
+  }
+  void RefreshMini(System.Collections.Generic.List<Occurrence> today,System.Collections.Generic.List<Occurrence> active,DateTime now,bool activityChanged) {
    clockLabel.Text=now.ToString("ddd d MMM  ·  HH:mm",UI.Culture).ToUpperInvariant();
    hero.Children.Clear();
-   Occurrence shown=active.Count>0?active[0]:null;
-   for(int i=0;i<8 && shown==null;i++) shown=Schedule.ForDay(State,now.Date.AddDays(i)).FirstOrDefault(o=>o.Start>now&&!State.Completed.Contains(o.Key));
-   var card=new Border { Background=UI.Hero,CornerRadius=new CornerRadius(10),Padding=new Thickness(12,8,12,10),Cursor=Cursors.Hand,ToolTip=UI.T("Open schedule") };
-   var body=new StackPanel(); card.Child=body;
+   bool running=active.Count>0;
+   var upcoming=new System.Collections.Generic.List<Occurrence>();
+   for(int i=0;i<8 && upcoming.Count<8;i++) foreach(var o in Schedule.ForDay(State,now.Date.AddDays(i))) if(o.Start>now && !State.Completed.Contains(o.Key) && !upcoming.Any(u=>u.Key==o.Key)) upcoming.Add(o);
+   upcoming=upcoming.OrderBy(o=>o.Start).ToList();
+   Occurrence shown=running?active[0]:upcoming.FirstOrDefault();
    if(shown==null) {
+    var empty=new Border { Background=UI.Hero,CornerRadius=new CornerRadius(10),Padding=new Thickness(12,8,12,10) }; var body=new StackPanel(); empty.Child=body;
     body.Children.Add(new TextBlock { Text=UI.T("ROOM TO BREATHE"),FontSize=9,Foreground=UI.Accent });
     body.Children.Add(new TextBlock { Text=UI.T(State.Activities.Count==0?"Make room for your day.":"You’re between activities."),FontSize=15,FontWeight=FontWeights.SemiBold,Foreground=UI.Text,TextWrapping=TextWrapping.Wrap });
-   } else {
-    bool running=active.Count>0; string key=shown.Key;
-    var eyebrow=new DockPanel(); var dot=new Ellipse { Width=8,Height=8,Fill=UI.B(shown.Activity.Color),Margin=new Thickness(0,0,6,0),VerticalAlignment=VerticalAlignment.Center }; DockPanel.SetDock(dot,Dock.Left); eyebrow.Children.Add(dot);
-    eyebrow.Children.Add(new TextBlock { Text=UI.T(running?"RIGHT NOW":"UP NEXT"),FontSize=9,Foreground=UI.Accent,VerticalAlignment=VerticalAlignment.Center }); body.Children.Add(eyebrow);
-    body.Children.Add(new TextBlock { Text=shown.Activity.Title,FontSize=17,FontWeight=FontWeights.SemiBold,Foreground=UI.Text,TextTrimming=TextTrimming.CharacterEllipsis,Margin=new Thickness(0,2,0,0) });
-    string detail=running?shown.Start.ToString("HH:mm")+" – "+shown.End.ToString("HH:mm")+"  ·  "+Math.Ceiling((shown.End-now).TotalMinutes)+UI.T(" min left"):(shown.Start.Date==now.Date?"":shown.Start.ToString("ddd ",UI.Culture))+shown.Start.ToString("HH:mm")+" – "+shown.End.ToString("HH:mm");
-    body.Children.Add(new TextBlock { Text=detail,FontSize=11,Foreground=UI.Muted,TextTrimming=TextTrimming.CharacterEllipsis });
-    if(running) body.Children.Add(new ProgressBar { Minimum=0,Maximum=100,Value=(now-shown.Start).TotalSeconds/(shown.End-shown.Start).TotalSeconds*100,Height=3,Foreground=UI.B(shown.Activity.Color),Background=UI.Line,BorderThickness=new Thickness(0),Margin=new Thickness(0,6,0,0) });
-    card.MouseLeftButtonUp+=(s,e)=> { e.Handled=true; ToggleCompact(); if(State.WeekView) FocusWeekNow(); else if(running) Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,new Action(()=>FocusActivity(key,true))); };
-    card.MouseLeftButtonDown+=(s,e)=>e.Handled=true;
+    hero.Children.Add(empty); miniCapacity=MiniCapacity(); return;
    }
-   hero.Children.Add(card);
-   if(active.Count>0) {
-    var after=today.FirstOrDefault(o=>o.Start>=active[0].End&&!State.Completed.Contains(o.Key));
-    var nextLine=new TextBlock { Text=after==null?UI.T("Nothing else today"):UI.T("After")+" · "+after.Activity.Title+"  "+after.Start.ToString("HH:mm"),FontSize=11,Foreground=UI.Muted,TextTrimming=TextTrimming.CharacterEllipsis,Margin=new Thickness(4,6,0,0) };
-    hero.Children.Add(nextLine);
+   var primary=MiniCard(shown,true,running,now);
+   primary.Measure(new Size(Math.Max(120,miniHost.ActualWidth),double.PositiveInfinity)); miniPrimaryHeight=primary.DesiredSize.Height;
+   int slots=MiniCapacity(); miniCapacity=slots;
+   var nexts=upcoming.Where(o=>o.Key!=shown.Key).ToList();
+   var previous=today.Where(o=>o.End<=now && o.Key!=shown.Key).OrderByDescending(o=>o.End).FirstOrDefault();
+   var above=new System.Collections.Generic.List<Occurrence>(); var below=new System.Collections.Generic.List<Occurrence>();
+   if(slots>=2 && previous!=null && nexts.Count>0) { above.Add(previous); slots--; }
+   foreach(var o in nexts) { if(slots<=0) break; below.Add(o); slots--; }
+   if(slots>0 && previous!=null && above.Count==0) above.Add(previous);
+   foreach(var o in above) hero.Children.Add(MiniCard(o,false,false,now));
+   hero.Children.Add(primary);
+   foreach(var o in below) hero.Children.Add(MiniCard(o,false,false,now));
+   if(below.Count==0 && running) {
+    var after=nexts.FirstOrDefault();
+    hero.Children.Add(new TextBlock { Text=after==null?UI.T("Nothing else today"):UI.T("After")+" · "+after.Activity.Title+"  "+after.Start.ToString("HH:mm"),FontSize=11,Foreground=UI.Muted,TextTrimming=TextTrimming.CharacterEllipsis,Margin=new Thickness(4,6,0,0) });
    }
+   if(activityChanged) UI.SlideIn(primary,0,18);
   }
-  public void SetView(bool week) { if(State.WeekView==week) return; RememberSize(); State.WeekView=week; weekColumn=-1; focusNow=week; BuildView(); if(!preview) Save(); }
+  public void SetView(bool week) { if(State.WeekView==week) return; Transition(()=> { RememberSize(); State.WeekView=week; weekColumn=-1; focusNow=week; BuildView(); if(!preview) Save(); },null); }
   public void ZoomSchedule(int direction,double anchor) {
    if(!State.WeekView) { dayZoom=Math.Max(.8,Math.Min(1.7,dayZoom*(direction>0?1.1:1/1.1))); list.LayoutTransform=new ScaleTransform(dayZoom,dayZoom); return; }
    double before=weekZoom,previous=weekScroll.VerticalOffset; weekZoom=Math.Max(.65,Math.Min(3,weekZoom*(direction>0?1.15:1/1.15))); RenderWeek(); weekScroll.UpdateLayout(); weekScroll.ScrollToVerticalOffset((previous+anchor)*weekZoom/before-anchor);

@@ -15,7 +15,7 @@ Requires Windows 10/11 with .NET Framework 4.8. No installer or administrator ri
 
 - The title bar holds **add**, **manage**, **settings**, **pin**, minimize and hide-to-tray. Hover for labels. Drag the title bar to move the widget; double-click it to switch to the mini widget.
 - Below it, the **Day / Week** switch sits on the left; previous / **Today** / next and the **mini widget** button sit on the right.
-- The **mini widget** is a small window with the current (or next) activity, its progress and what comes after. Click the card to open the schedule at that activity, or use the expand button. The mini widget and the full schedule each remember their own size and position, including across restarts and monitors.
+- The **mini widget** is a small window with the current (or next) activity and its progress. Make it taller to also see the previous and upcoming activities (outlined cards); with room for only one card it shows what comes next as a line of text. Hover any card for **Edit**; click a card to open the schedule at that activity, or use the expand button. Switching views and modes fades smoothly, and when a new activity starts its card slides in and pulses. The mini widget and the full schedule each remember their own size and position, including across restarts and monitors.
 - Day and week views **share one window size**, and switching views never resizes the window. Drag any edge or corner to resize.
 - The week view shrinks to **3–7 day columns**. With fewer than seven it scrolls horizontally (Shift + wheel, or wheel over the day headings) and keeps today centered while you resize.
 - **Ctrl + mouse wheel** over the schedule zooms.

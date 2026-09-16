@@ -74,6 +74,14 @@ namespace Dayglance {
    fade.Completed+=(s,e)=> { try { layer.Remove(adorner); } catch {} };
    adorner.Ring.BeginAnimation(UIElement.OpacityProperty,fade); glow.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.BlurRadiusProperty,blur);
   }
+  // Fades an element in while sliding it from (dx,dy) to its place.
+  public static void SlideIn(FrameworkElement element,double dx,double dy) {
+   if(element==null) return; var ease=new System.Windows.Media.Animation.CubicEase { EasingMode=System.Windows.Media.Animation.EasingMode.EaseOut }; var duration=TimeSpan.FromMilliseconds(420);
+   var move=new TranslateTransform(dx,dy); element.RenderTransform=move;
+   element.BeginAnimation(UIElement.OpacityProperty,new System.Windows.Media.Animation.DoubleAnimation(0,1,duration) { EasingFunction=ease });
+   if(dx!=0) move.BeginAnimation(TranslateTransform.XProperty,new System.Windows.Media.Animation.DoubleAnimation(dx,0,duration) { EasingFunction=ease });
+   if(dy!=0) move.BeginAnimation(TranslateTransform.YProperty,new System.Windows.Media.Animation.DoubleAnimation(dy,0,duration) { EasingFunction=ease });
+  }
   public static DialogWindow Dialog(Window owner,string title,double width,double height) { return new DialogWindow { Owner=owner,Title=T(title),Width=width*Scale,Height=Math.Min(height*Scale,SystemParameters.WorkArea.Height),MinWidth=Math.Min(width*Scale,SystemParameters.WorkArea.Width),MinHeight=320,WindowStartupLocation=WindowStartupLocation.CenterOwner,Background=Brushes.Transparent,Foreground=Text,FontFamily=new FontFamily("Segoe UI"),ResizeMode=ResizeMode.CanResize,ShowInTaskbar=false }; }
  }
  public class GlowAdorner : System.Windows.Documents.Adorner {
@@ -156,15 +164,36 @@ namespace Dayglance {
   void PersistPosition() { RememberSize(); Save(); }
   bool Save() { try { Storage.Save(State); return true; } catch(Exception ex) { MessageBox.Show(this,UI.T("Your changes could not be saved.")+"\n\n"+UI.T(ex.Message),"Dayglance",MessageBoxButton.OK,MessageBoxImage.Error); return false; } }
   // The compact button switches between the full schedule and a small "right now" widget; each keeps its own size and position.
-  void ToggleCompact() { RememberSize(); State.Compact=!State.Compact; if(!State.Compact && State.WeekView) { focusNow=true; weekColumn=-1; } SetSize(); BuildView(); if(!preview) Save(); }
+  void ToggleCompact() { ToggleCompact(null); }
+  void ToggleCompact(Action after) { Transition(()=> { RememberSize(); State.Compact=!State.Compact; if(!State.Compact && State.WeekView) { focusNow=true; weekColumn=-1; } SetSize(); BuildView(); if(!preview) Save(); },after); }
+  bool transitioning; string lastCurrentKey;
+  // Fades the current content out, applies the change (view/mode switch), then fades and lifts the new content in.
+  void Transition(Action change,Action after) {
+   var content=Content as FrameworkElement;
+   if(preview || transitioning || content==null || !IsVisible || !SystemParameters.ClientAreaAnimation) { change(); if(after!=null) after(); return; }
+   transitioning=true;
+   var fadeOut=new System.Windows.Media.Animation.DoubleAnimation(1,0,TimeSpan.FromMilliseconds(110));
+   fadeOut.Completed+=(s,e)=> {
+    try { change(); } finally { transitioning=false; content.BeginAnimation(UIElement.OpacityProperty,null); }
+    var fresh=Content as FrameworkElement;
+    if(fresh!=null && fresh!=content) {
+     var ease=new System.Windows.Media.Animation.CubicEase { EasingMode=System.Windows.Media.Animation.EasingMode.EaseOut }; var lift=new TranslateTransform(0,10); fresh.RenderTransform=lift;
+     fresh.BeginAnimation(UIElement.OpacityProperty,new System.Windows.Media.Animation.DoubleAnimation(0,1,TimeSpan.FromMilliseconds(230)) { EasingFunction=ease });
+     lift.BeginAnimation(TranslateTransform.YProperty,new System.Windows.Media.Animation.DoubleAnimation(10,0,TimeSpan.FromMilliseconds(280)) { EasingFunction=ease });
+    }
+    if(after!=null) Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,after);
+   };
+   content.BeginAnimation(UIElement.OpacityProperty,fadeOut);
+  }
   public void Refresh(bool force) {
    if(settingsOpen && !force) return;
    DateTime now=DateTime.Now; if(selected==lastToday) selected=now.Date; lastToday=now.Date; clockLabel.Text=now.ToString("ddd d MMM  ·  HH:mm",UI.Culture).ToUpperInvariant();
    var today=Schedule.ForDay(State,now.Date); var active=today.Where(o=>o.Start<=now && o.End>now && !State.Completed.Contains(o.Key)).ToList();
    var entries=Schedule.ForDay(State,selected); var sig=selected.ToString("O")+now.ToString("yyyyMMddHHmm")+State.Completed.Count+State.Activities.Count;
    if(!force && signature==sig) return; signature=sig;
+   string currentKey=active.Count>0?active[0].Key:""; bool activityChanged=!preview && lastCurrentKey!=null && currentKey!=lastCurrentKey; lastCurrentKey=currentKey;
    pin.Content=State.Pinned?"\uE842":"\uE718"; pin.Foreground=State.Pinned?UI.Accent:UI.Text; pin.ToolTip=UI.T(State.Pinned?"● Pinned on top":"Pin on top"); compact.Content=State.Compact?"\uE740":"\uE73F"; compact.ToolTip=UI.T(State.Compact?"Expand":"Mini widget");
-   if(State.Compact) { RefreshMini(today,active,now); return; }
+   if(State.Compact) { RefreshMini(today,active,now,activityChanged); return; }
    dayLabel.Text=State.WeekView?Schedule.WeekStart(selected).ToString("d MMM",UI.Culture)+" – "+Schedule.WeekStart(selected).AddDays(6).ToString("d MMM yyyy",UI.Culture):selected==now.Date?UI.T("Today"):selected.ToString("ddd, d MMM",UI.Culture);
    hero.Children.Clear(); var hp=new StackPanel(); hp.Children.Add(UI.Label(active.Count>0?"RIGHT NOW" : "ROOM TO BREATHE",10,UI.Accent));
    if(active.Count>0) {
@@ -181,6 +210,11 @@ namespace Dayglance {
    if(focusTarget!=null) { string focusKey=focusTarget.Key; heroBox.Cursor=Cursors.Hand; heroBox.ToolTip=UI.T("Show in schedule"); heroBox.MouseLeftButtonUp+=(s,e)=>FocusActivity(focusKey,true); }
    summary.Text=UI.T("SCHEDULE")+"  /  "+entries.Count+" "+UI.T("ACTIVITIES")+"  ·  "+entries.Count(o=>State.Completed.Contains(o.Key))+" "+UI.T("DONE");
    weekNow.Visibility=State.WeekView?Visibility.Visible:Visibility.Collapsed; if(State.WeekView) FillWeekNow(active,now);
+   // A new activity just started: slide the Right now card in and give the new current activity a pulse.
+   if(activityChanged && active.Count>0) {
+    if(State.WeekView) { UI.SlideIn(weekNow,24,0); Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,new Action(()=> { if(weekNowTarget!=null) UI.Attention(weekNowTarget); })); }
+    else UI.SlideIn(heroBox,24,0);
+   }
    if(State.WeekView) { summary.Text=UI.T("Click an activity to edit or an empty slot to add one."); RenderWeek(); return; }
    var offset=scroll.VerticalOffset; list.Children.Clear();
    if(entries.Count==0) { var empty=new StackPanel { Margin=new Thickness(8,15,8,0) }; empty.Children.Add(UI.Label("A fresh page.",20,UI.Text)); empty.Children.Add(UI.Label("Use + Activity to add something, or Manage to edit your weekly routine.",13,UI.Muted)); list.Children.Add(empty); }
@@ -192,6 +226,7 @@ namespace Dayglance {
     busyUntil=!busyUntil.HasValue||o.End>busyUntil.Value?o.End:busyUntil.Value;
    }
    scroll.ScrollToVerticalOffset(offset);
+   Border startedCard; if(activityChanged && selected==now.Date && dayCards.TryGetValue(currentKey,out startedCard)) Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,new Action(()=>UI.GlowAround(startedCard,12)));
   }
   void Notify() {
    if(!State.Notifications) return;
