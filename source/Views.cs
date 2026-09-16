@@ -257,7 +257,7 @@ namespace Dayglance {
    double target=top(card);
    if(previous!=null && top(last)+last.ActualHeight*dayZoom-top(previous)<=scroll.ViewportHeight+1) target=top(previous);
    scroll.ScrollToVerticalOffset(Math.Max(0,target));
-   if(pulse) Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,new Action(()=>UI.Attention(card)));
+   if(pulse) Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,new Action(()=>UI.GlowAround(card,12)));
   }
   // Hover target between two day cards with free time: shows "+ start – end" and opens the editor for the earliest hour of that gap.
   FrameworkElement GapRow(DateTime from,DateTime to) {
@@ -292,7 +292,8 @@ namespace Dayglance {
    var hole=new RectangleGeometry(new Rect(left-pad,top-pad,target.Width+pad*2,target.Height+pad*2),5,5);
    var veil=new System.Windows.Shapes.Path { Data=new CombinedGeometry(GeometryCombineMode.Exclude,new RectangleGeometry(new Rect(0,0,canvas.Width,canvas.Height)),hole),Fill=Brushes.Black,Opacity=0,IsHitTestVisible=false };
    var gutterVeil=new Rectangle { Width=hours.Width,Height=hours.Height,Fill=Brushes.Black,Opacity=0,IsHitTestVisible=false };
-   Panel.SetZIndex(veil,10); Panel.SetZIndex(gutterVeil,10); // above the grid and other cards, below the current card (12) and its glow ring (11) canvas.Children.Add(veil); hours.Children.Add(gutterVeil);
+   // Shade sits above the grid and other cards (z 10) but below the current card's glow ring (11) and the card itself (12).
+   Panel.SetZIndex(veil,10); Panel.SetZIndex(gutterVeil,10); canvas.Children.Add(veil); hours.Children.Add(gutterVeil);
    foreach(var shade in new FrameworkElement[]{veil,gutterVeil}) {
     var element=shade; var ease=new System.Windows.Media.Animation.SineEase { EasingMode=System.Windows.Media.Animation.EasingMode.EaseInOut };
     var fade=new System.Windows.Media.Animation.DoubleAnimationUsingKeyFrames();

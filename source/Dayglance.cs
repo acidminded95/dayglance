@@ -59,7 +59,31 @@ namespace Dayglance {
    element.BeginAnimation(UIElement.OpacityProperty,new System.Windows.Media.Animation.DoubleAnimation(1,1,TimeSpan.FromMilliseconds(2520)) { FillBehavior=System.Windows.Media.Animation.FillBehavior.Stop });
    glow.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.BlurRadiusProperty,blur);
   }
+  // Glow ring drawn in the adorner layer around an element, so the element itself (and its text) is never rendered through a blur effect.
+  public static void GlowAround(FrameworkElement element,double cornerRadius) {
+   if(element==null) return; var layer=System.Windows.Documents.AdornerLayer.GetAdornerLayer(element); if(layer==null) { Attention(element); return; }
+   var adorner=new GlowAdorner(element,new CornerRadius(cornerRadius+3)); layer.Add(adorner);
+   var glow=new System.Windows.Media.Effects.DropShadowEffect { Color=((SolidColorBrush)Accent).Color,ShadowDepth=0,BlurRadius=0,Opacity=1 }; adorner.Ring.Effect=glow;
+   var ease=new System.Windows.Media.Animation.SineEase { EasingMode=System.Windows.Media.Animation.EasingMode.EaseInOut };
+   var blur=new System.Windows.Media.Animation.DoubleAnimation(0,28,TimeSpan.FromMilliseconds(420)) { AutoReverse=true,RepeatBehavior=new System.Windows.Media.Animation.RepeatBehavior(3),EasingFunction=ease };
+   var fade=new System.Windows.Media.Animation.DoubleAnimationUsingKeyFrames();
+   fade.KeyFrames.Add(new System.Windows.Media.Animation.EasingDoubleKeyFrame(0,System.Windows.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.Zero)));
+   fade.KeyFrames.Add(new System.Windows.Media.Animation.EasingDoubleKeyFrame(1,System.Windows.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(180)),ease));
+   fade.KeyFrames.Add(new System.Windows.Media.Animation.EasingDoubleKeyFrame(1,System.Windows.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(2200))));
+   fade.KeyFrames.Add(new System.Windows.Media.Animation.EasingDoubleKeyFrame(0,System.Windows.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(2520)),ease));
+   fade.Completed+=(s,e)=> { try { layer.Remove(adorner); } catch {} };
+   adorner.Ring.BeginAnimation(UIElement.OpacityProperty,fade); glow.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.BlurRadiusProperty,blur);
+  }
   public static DialogWindow Dialog(Window owner,string title,double width,double height) { return new DialogWindow { Owner=owner,Title=T(title),Width=width*Scale,Height=Math.Min(height*Scale,SystemParameters.WorkArea.Height),MinWidth=Math.Min(width*Scale,SystemParameters.WorkArea.Width),MinHeight=320,WindowStartupLocation=WindowStartupLocation.CenterOwner,Background=Brushes.Transparent,Foreground=Text,FontFamily=new FontFamily("Segoe UI"),ResizeMode=ResizeMode.CanResize,ShowInTaskbar=false }; }
+ }
+ public class GlowAdorner : System.Windows.Documents.Adorner {
+  readonly Border ring;
+  public Border Ring { get { return ring; } }
+  public GlowAdorner(UIElement adorned,CornerRadius radius) : base(adorned) { IsHitTestVisible=false; ring=new Border { BorderBrush=UI.Accent,BorderThickness=new Thickness(2.5),CornerRadius=radius,IsHitTestVisible=false }; AddVisualChild(ring); }
+  protected override int VisualChildrenCount { get { return 1; } }
+  protected override Visual GetVisualChild(int index) { return ring; }
+  protected override Size MeasureOverride(Size constraint) { ring.Measure(constraint); return AdornedElement.RenderSize; }
+  protected override Size ArrangeOverride(Size finalSize) { var size=AdornedElement.RenderSize; ring.Arrange(new Rect(-3,-3,size.Width+6,size.Height+6)); return finalSize; }
  }
  public partial class MainWindow : Window {
   public State State;
