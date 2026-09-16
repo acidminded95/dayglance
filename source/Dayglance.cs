@@ -24,6 +24,15 @@ namespace Dayglance {
    var content=new FrameworkElementFactory(typeof(ContentPresenter)); content.SetValue(FrameworkElement.MarginProperty,new Thickness(10,7,10,7)); content.SetValue(FrameworkElement.HorizontalAlignmentProperty,HorizontalAlignment.Center); content.SetValue(FrameworkElement.VerticalAlignmentProperty,VerticalAlignment.Center); border.AppendChild(content); template.VisualTree=border; b.Template=template;
    b.Click+=(s,e)=>action(); return b;
   }
+  // Borderless icon button (Segoe Fluent Icons / MDL2 glyphs) used for the compact widget chrome.
+  public static Button Icon(string glyph,string tooltip,Action action,bool accent=false) {
+   Brush normal=accent?Accent:Brushes.Transparent,hover=accent?Accent:Card;
+   var b=new Button { Content=glyph,FontFamily=new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),FontSize=14,Width=32,Height=32,Background=normal,Foreground=accent?AccentInk:Text,BorderThickness=new Thickness(0),Cursor=Cursors.Hand,Margin=new Thickness(2,0,0,0),ToolTip=T(tooltip) };
+   var template=new ControlTemplate(typeof(Button)); var border=new FrameworkElementFactory(typeof(Border)); border.SetValue(Border.CornerRadiusProperty,new CornerRadius(8)); border.SetBinding(Border.BackgroundProperty,new System.Windows.Data.Binding("Background") { RelativeSource=new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.TemplatedParent) });
+   var content=new FrameworkElementFactory(typeof(ContentPresenter)); content.SetValue(FrameworkElement.HorizontalAlignmentProperty,HorizontalAlignment.Center); content.SetValue(FrameworkElement.VerticalAlignmentProperty,VerticalAlignment.Center); border.AppendChild(content); template.VisualTree=border; b.Template=template;
+   if(accent) { b.MouseEnter+=(s,e)=>b.Opacity=.85; b.MouseLeave+=(s,e)=>b.Opacity=1; } else { b.MouseEnter+=(s,e)=>b.Background=hover; b.MouseLeave+=(s,e)=>b.Background=normal; }
+   b.Click+=(s,e)=>action(); return b;
+  }
   public static Border Box(UIElement child,Brush background,Thickness margin) { return new Border { Child=child,Background=background,CornerRadius=new CornerRadius(12),Padding=new Thickness(16),Margin=margin }; }
   public static StackPanel Row() { return new StackPanel { Orientation=Orientation.Horizontal }; }
   public static TextBox Input(string value) { return new TextBox { Text=value??"",FontSize=14,Padding=new Thickness(8),Margin=new Thickness(0,0,0,12),Background=Card,Foreground=Text,BorderBrush=Muted,CaretBrush=Text }; }
@@ -56,17 +65,35 @@ namespace Dayglance {
   }
   void BuildView() {
    UI.Apply(State); Background=UI.Bg; Foreground=UI.Text;
-   var root=new DockPanel { Margin=new Thickness(20,16,20,14),LastChildFill=true }; Content=new Border { BorderBrush=UI.Line,BorderThickness=new Thickness(1),Child=root };
-   var header=new Grid { Margin=new Thickness(0,0,0,18) }; header.ColumnDefinitions.Add(new ColumnDefinition()); header.ColumnDefinitions.Add(new ColumnDefinition { Width=GridLength.Auto });
-   var brand=UI.Label("◉  dayglance",20,UI.Text); brand.FontWeight=FontWeights.SemiBold; brand.Cursor=Cursors.SizeAll; brand.ToolTip=UI.T("Drag to position your widget"); brand.MouseLeftButtonDown+=(s,e)=> { if(e.ClickCount==2) ToggleCompact(); else DragMove(); }; header.Children.Add(brand);
-   var chrome=UI.Row(); chrome.Children.Add(UI.Button("−",()=>WindowState=WindowState.Minimized)); chrome.Children.Add(UI.Button("×",()=>Close())); Grid.SetColumn(chrome,1); header.Children.Add(chrome); DockPanel.SetDock(header,Dock.Top); root.Children.Add(header);
-   var foot=new StackPanel { Margin=new Thickness(0,12,0,0) }; var actions=new DockPanel();
-   pin=UI.Button("",()=> { State.Pinned=!State.Pinned; Topmost=State.Pinned; Save(); Refresh(true); }); pin.Width=40; pin.FontSize=18; DockPanel.SetDock(pin,Dock.Right); actions.Children.Add(pin);
-   var leftActions=UI.Row(); var add=UI.Button("+",()=>Edit(null),true); add.ToolTip=UI.T("Add activity"); add.Width=44; add.FontSize=20; leftActions.Children.Add(add); var manage=UI.Button("≡",Manage); manage.ToolTip=UI.T("Manage"); manage.Width=44; manage.FontSize=20; leftActions.Children.Add(manage); var settings=UI.Button("⚙",Settings); settings.ToolTip=UI.T("Settings"); settings.Width=44; settings.FontSize=18; leftActions.Children.Add(settings); actions.Children.Add(leftActions); foot.Children.Add(actions);
-   var motto=UI.Label("LOCAL BY DESIGN  ·  YOUR TIME, YOUR WAY",9,UI.Muted); motto.Margin=new Thickness(0,12,0,0); foot.Children.Add(motto); DockPanel.SetDock(foot,Dock.Bottom); root.Children.Add(foot);
-   var top=new StackPanel(); var viewRow=new DockPanel { Margin=new Thickness(0,0,0,12) }; compact=UI.Button("",ToggleCompact); compact.Width=42; compact.FontSize=18; DockPanel.SetDock(compact,Dock.Right); viewRow.Children.Add(compact); var views=UI.Row(); views.Children.Add(UI.Button("Day",()=>SetView(false),!State.WeekView)); views.Children.Add(UI.Button("Week",()=>SetView(true),State.WeekView)); viewRow.Children.Add(views); top.Children.Add(viewRow); clockLabel=UI.Label("",12,UI.Muted); top.Children.Add(clockLabel);
-   var dates=new Grid(); dates.ColumnDefinitions.Add(new ColumnDefinition()); dates.ColumnDefinitions.Add(new ColumnDefinition { Width=GridLength.Auto });
-   dayLabel=UI.Label("",23,UI.Text); dayLabel.FontWeight=FontWeights.SemiBold; dates.Children.Add(dayLabel); var nav=UI.Row(); nav.Children.Add(UI.Button("‹",()=> { selected=selected.AddDays(State.WeekView?-7:-1); Refresh(true); })); nav.Children.Add(UI.Button("Today",()=> { selected=DateTime.Today; Refresh(true); })); nav.Children.Add(UI.Button("›",()=> { selected=selected.AddDays(State.WeekView?7:1); Refresh(true); })); Grid.SetColumn(nav,1); dates.Children.Add(nav); top.Children.Add(dates);
+   var root=new DockPanel { Margin=new Thickness(18,10,18,12),LastChildFill=true }; Content=new Border { BorderBrush=UI.Line,BorderThickness=new Thickness(1),Child=root };
+   // Title bar: brand (drag handle) on the left, actions and window controls on the right.
+   var header=new DockPanel { Margin=new Thickness(0,0,0,10),Background=Brushes.Transparent,Cursor=Cursors.SizeAll }; header.ToolTip=UI.T("Drag to position your widget");
+   header.MouseLeftButtonDown+=(s,e)=> { if(e.ClickCount==2) ToggleCompact(); else DragMove(); };
+   var tools=UI.Row(); tools.Cursor=Cursors.Arrow; tools.VerticalAlignment=VerticalAlignment.Center;
+   tools.Children.Add(UI.Icon("\uE710","Add activity",()=>Edit(null),true)); tools.Children.Add(UI.Icon("\uE8FD","Manage",Manage)); tools.Children.Add(UI.Icon("\uE713","Settings",Settings));
+   tools.Children.Add(new Border { Width=1,Height=18,Background=UI.Line,Margin=new Thickness(8,0,6,0),VerticalAlignment=VerticalAlignment.Center });
+   pin=UI.Icon("\uE718","Pin on top",()=> { State.Pinned=!State.Pinned; Topmost=State.Pinned; Save(); Refresh(true); }); tools.Children.Add(pin);
+   tools.Children.Add(UI.Icon("\uE921","Minimize",()=>WindowState=WindowState.Minimized)); tools.Children.Add(UI.Icon("\uE8BB","Hide to tray",()=>Close()));
+   DockPanel.SetDock(tools,Dock.Right); header.Children.Add(tools);
+   var brand=UI.Row(); brand.VerticalAlignment=VerticalAlignment.Center; var mark=(FrameworkElement)BrandIcon.Visual(); mark.Margin=new Thickness(0); brand.Children.Add(new Viewbox { Width=20,Height=20,Child=mark,Margin=new Thickness(0,0,8,0) });
+   var brandText=new TextBlock { Text="dayglance",FontSize=16,FontWeight=FontWeights.SemiBold,Foreground=UI.Text,VerticalAlignment=VerticalAlignment.Center }; brand.Children.Add(brandText); header.Children.Add(brand);
+   DockPanel.SetDock(header,Dock.Top); root.Children.Add(header);
+   var foot=UI.Label("LOCAL BY DESIGN  ·  YOUR TIME, YOUR WAY",9,UI.Muted); foot.Margin=new Thickness(0,8,0,0); DockPanel.SetDock(foot,Dock.Bottom); root.Children.Add(foot);
+   var top=new StackPanel();
+   // Toolbar: Day/Week segmented switch on the left; date navigation and density on the right.
+   var toolbar=new DockPanel { Margin=new Thickness(0,0,0,12) };
+   var nav=UI.Row(); nav.VerticalAlignment=VerticalAlignment.Center;
+   nav.Children.Add(UI.Icon("\uE76B","Previous",()=> { selected=selected.AddDays(State.WeekView?-7:-1); Refresh(true); }));
+   var todayButton=UI.Button("Today",()=> { selected=DateTime.Today; Refresh(true); }); todayButton.Margin=new Thickness(2,0,2,0); todayButton.MinHeight=30; todayButton.Background=Brushes.Transparent; nav.Children.Add(todayButton);
+   nav.Children.Add(UI.Icon("\uE76C","Next",()=> { selected=selected.AddDays(State.WeekView?7:1); Refresh(true); }));
+   compact=UI.Icon("\uE73F","Compact",ToggleCompact); compact.Margin=new Thickness(6,0,0,0); nav.Children.Add(compact);
+   DockPanel.SetDock(nav,Dock.Right); toolbar.Children.Add(nav);
+   var views=UI.Row(); var dayButton=UI.Button("Day",()=>SetView(false),!State.WeekView); var weekButton=UI.Button("Week",()=>SetView(true),State.WeekView);
+   foreach(var b in new[]{dayButton,weekButton}) { b.Margin=new Thickness(0); b.MinHeight=28; b.Padding=new Thickness(4,2,4,2); if(b.Background!=UI.Accent) b.Background=Brushes.Transparent; views.Children.Add(b); }
+   var segmented=new Border { Child=views,Background=UI.Card,CornerRadius=new CornerRadius(9),Padding=new Thickness(3),HorizontalAlignment=HorizontalAlignment.Left,VerticalAlignment=VerticalAlignment.Center }; toolbar.Children.Add(segmented);
+   top.Children.Add(toolbar);
+   clockLabel=UI.Label("",11,UI.Muted); clockLabel.Margin=new Thickness(0,0,0,2); top.Children.Add(clockLabel);
+   dayLabel=UI.Label("",22,UI.Text); dayLabel.FontWeight=FontWeights.SemiBold; dayLabel.Margin=new Thickness(0); top.Children.Add(dayLabel);
    hero=new StackPanel(); top.Children.Add(hero); summary=UI.Label("",11,UI.Muted); summary.Margin=new Thickness(0,12,0,10); top.Children.Add(summary); DockPanel.SetDock(top,Dock.Top); root.Children.Add(top);
    list=new StackPanel(); scroll=new ScrollViewer { Content=list,VerticalScrollBarVisibility=ScrollBarVisibility.Auto,HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled }; if(State.WeekView) { weekPanel=new DockPanel(); weekPanel.SizeChanged+=(s,e)=>RenderWeek(); root.Children.Add(weekPanel); } else { weekPanel=null; root.Children.Add(scroll); }
    hero.Visibility=State.WeekView?Visibility.Collapsed:Visibility.Visible;
@@ -80,11 +107,11 @@ namespace Dayglance {
   void ToggleCompact() { State.Compact=!State.Compact; weekZoom=1; dayZoom=1; BuildView(); Save(); }
   public void Refresh(bool force) {
    if(settingsOpen && !force) return;
-   DateTime now=DateTime.Now; if(selected==lastToday) selected=now.Date; lastToday=now.Date; clockLabel.Text=now.ToString("dddd, d MMMM  ·  HH:mm",UI.Culture).ToUpperInvariant();
+   DateTime now=DateTime.Now; if(selected==lastToday) selected=now.Date; lastToday=now.Date; clockLabel.Text=now.ToString("ddd d MMM  ·  HH:mm",UI.Culture).ToUpperInvariant();
    var today=Schedule.ForDay(State,now.Date); var active=today.Where(o=>o.Start<=now && o.End>now && !State.Completed.Contains(o.Key)).ToList();
    var entries=Schedule.ForDay(State,selected); var sig=selected.ToString("O")+now.ToString("yyyyMMddHHmm")+State.Completed.Count+State.Activities.Count;
    if(!force && signature==sig) return; signature=sig;
-   pin.Content=State.Pinned?"●":"○"; pin.ToolTip=UI.T(State.Pinned?"● Pinned on top":"Pin on top"); compact.Content=State.Compact?"⤢":"⤡"; compact.ToolTip=UI.T(State.Compact?"Expand":"Compact")+" · Ctrl + scroll";
+   pin.Content=State.Pinned?"\uE842":"\uE718"; pin.Foreground=State.Pinned?UI.Accent:UI.Text; pin.ToolTip=UI.T(State.Pinned?"● Pinned on top":"Pin on top"); compact.Content=State.Compact?"\uE740":"\uE73F"; compact.ToolTip=UI.T(State.Compact?"Expand":"Compact")+" · Ctrl + scroll";
    dayLabel.Text=State.WeekView?Schedule.WeekStart(selected).ToString("d MMM",UI.Culture)+" – "+Schedule.WeekStart(selected).AddDays(6).ToString("d MMM yyyy",UI.Culture):selected==now.Date?UI.T("Today"):selected.ToString("ddd, d MMM",UI.Culture);
    hero.Children.Clear(); var hp=new StackPanel(); hp.Children.Add(UI.Label(active.Count>0?"RIGHT NOW" : "ROOM TO BREATHE",10,UI.Accent));
    if(active.Count>0) {
