@@ -105,8 +105,8 @@ namespace Dayglance {
     body.Children.Add(new TextBlock { Text=(o.Start.Date==now.Date?"":o.Start.ToString("ddd ",UI.Culture))+o.Start.ToString("HH:mm")+" – "+o.End.ToString("HH:mm"),FontSize=11,Foreground=UI.Muted,Margin=new Thickness(13,0,0,0) });
    }
    var holder=new Grid { Cursor=Cursors.Hand,ToolTip=UI.T("Open schedule") }; holder.Children.Add(card);
-   var edit=new Border { Background=UI.Accent,CornerRadius=new CornerRadius(8),Padding=new Thickness(8,2,9,3),HorizontalAlignment=HorizontalAlignment.Right,VerticalAlignment=VerticalAlignment.Top,Margin=new Thickness(0,primary?8:7,8,0),Visibility=Visibility.Hidden,Cursor=Cursors.Hand,ToolTip=UI.T("Edit activity"),
-    Child=new TextBlock { Text="✎ "+UI.T("Edit"),FontSize=11,FontWeight=FontWeights.SemiBold,Foreground=UI.AccentInk } };
+   var edit=new Border { Background=UI.Accent,CornerRadius=new CornerRadius(8),Padding=new Thickness(6,5,6,5),HorizontalAlignment=HorizontalAlignment.Right,VerticalAlignment=VerticalAlignment.Top,Margin=new Thickness(0,primary?8:6,8,0),Visibility=Visibility.Hidden,Cursor=Cursors.Hand,ToolTip=UI.T("Edit activity"),
+    Child=new TextBlock { Text="\uE70F",FontFamily=new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),FontSize=12,Foreground=UI.AccentInk } };
    edit.MouseLeftButtonDown+=(s,e)=>e.Handled=true; edit.MouseLeftButtonUp+=(s,e)=> { e.Handled=true; Edit(o.Activity); };
    holder.Children.Add(edit);
    holder.MouseEnter+=(s,e)=>edit.Visibility=Visibility.Visible; holder.MouseLeave+=(s,e)=>edit.Visibility=Visibility.Hidden;
@@ -150,7 +150,42 @@ namespace Dayglance {
    }
    if(activityChanged) UI.SlideIn(primary,0,18);
   }
-  public void SetView(bool week) { if(State.WeekView==week) return; Transition(()=> { RememberSize(); State.WeekView=week; weekColumn=-1; focusNow=week; BuildView(); if(!preview) Save(); },null); }
+  System.Collections.Generic.List<UIElement>[] weekParts; double weekVisibleWidth,weekTargetOffset; int weekEnterFocus=-1;
+  // Day <-> week: the focused day's column morphs between the full width and its slot while the other days slide in/out from the sides.
+  public void SetView(bool week) {
+   if(State.WeekView==week) return;
+   Action change=()=> { RememberSize(); State.WeekView=week; weekColumn=-1; focusNow=week; BuildView(); if(!preview) Save(); };
+   if(preview || State.Compact || !SystemParameters.ClientAreaAnimation || transitioning) { change(); return; }
+   if(week) { weekEnterFocus=Math.Max(0,Math.Min(6,(selected.Date-Schedule.WeekStart(selected)).Days)); change(); if(scroll==null) return; return; }
+   int focus=(selected.Date-weekFirst).Days;
+   if(weekParts==null || weekScroll==null || focus<0 || focus>6) { Transition(change,null); return; }
+   transitioning=true;
+   AnimateWeekColumns(focus,false,weekScroll.HorizontalOffset,()=> { transitioning=false; change(); if(scroll!=null) UI.SlideIn(scroll,0,10); });
+  }
+  void AnimateWeekColumns(int focus,bool entering,double offset,Action done) {
+   if(weekParts==null || weekColumn<=0) { if(done!=null) done(); return; }
+   double column=weekColumn,span=Math.Max(column,weekVisibleWidth); bool reported=false;
+   var ease=new System.Windows.Media.Animation.CubicEase { EasingMode=System.Windows.Media.Animation.EasingMode.EaseInOut };
+   for(int d=0;d<7;d++) foreach(var part in weekParts[d]) {
+    var element=part as FrameworkElement; if(element==null) continue;
+    double left=Canvas.GetLeft(element); if(double.IsNaN(left)) left=d*column;
+    var duration=TimeSpan.FromMilliseconds((entering?440:320)+(d==focus?0:35*Math.Abs(d-focus)));
+    if(d==focus) {
+     // Stretch the focused column from its own left edge to the visible width, and shift it to the visible left edge.
+     var scale=new ScaleTransform(1,1,d*column-left,0); var move=new TranslateTransform(); var group=new TransformGroup(); group.Children.Add(scale); group.Children.Add(move); element.RenderTransform=group;
+     double wide=span/column,shift=offset-d*column;
+     var sx=new System.Windows.Media.Animation.DoubleAnimation(entering?wide:1,entering?1:wide,duration) { EasingFunction=ease };
+     var tx=new System.Windows.Media.Animation.DoubleAnimation(entering?shift:0,entering?0:shift,duration) { EasingFunction=ease };
+     if(!reported && done!=null) { reported=true; sx.Completed+=(s,e)=>done(); }
+     scale.BeginAnimation(ScaleTransform.ScaleXProperty,sx); move.BeginAnimation(TranslateTransform.XProperty,tx);
+    } else {
+     double distance=(d<focus?-1:1)*column*1.4; var move=new TranslateTransform(); element.RenderTransform=move; double opacity=element.Opacity;
+     move.BeginAnimation(TranslateTransform.XProperty,new System.Windows.Media.Animation.DoubleAnimation(entering?distance:0,entering?0:distance,duration) { EasingFunction=ease });
+     element.BeginAnimation(UIElement.OpacityProperty,new System.Windows.Media.Animation.DoubleAnimation(entering?0:opacity,entering?opacity:0,duration) { EasingFunction=ease });
+    }
+   }
+   if(!reported && done!=null) done();
+  }
   public void ZoomSchedule(int direction,double anchor) {
    if(!State.WeekView) { dayZoom=Math.Max(.8,Math.Min(1.7,dayZoom*(direction>0?1.1:1/1.1))); list.LayoutTransform=new ScaleTransform(dayZoom,dayZoom); return; }
    double before=weekZoom,previous=weekScroll.VerticalOffset; weekZoom=Math.Max(.65,Math.Min(3,weekZoom*(direction>0?1.15:1/1.15))); RenderWeek(); weekScroll.UpdateLayout(); weekScroll.ScrollToVerticalOffset((previous+anchor)*weekZoom/before-anchor);
@@ -160,7 +195,7 @@ namespace Dayglance {
   void RenderWeek() {
    if(weekPanel==null || ActualWidth<1) return;
    double offset=weekScroll==null?0:weekScroll.VerticalOffset,hOffset=weekScroll==null?-1:weekScroll.HorizontalOffset;
-   weekPanel.Children.Clear(); weekNowTarget=null; weekNowCard=null; weekNowDot=null; DateTime first=Schedule.WeekStart(selected),now=DateTime.Now;
+   weekPanel.Children.Clear(); weekParts=new System.Collections.Generic.List<UIElement>[7]; for(int part=0;part<7;part++) weekParts[part]=new System.Collections.Generic.List<UIElement>(); weekNowTarget=null; weekNowCard=null; weekNowDot=null; DateTime first=Schedule.WeekStart(selected),now=DateTime.Now;
    const double gutter=44,bar=10,hbar=8,minColumn=110;
    double total=weekPanel.ActualWidth>100?weekPanel.ActualWidth:ActualWidth-40, body=Math.Max(150,total-gutter-bar);
    int visible=Math.Max(3,Math.Min(7,(int)Math.Floor(body/minColumn))); double column=body/visible,width=column*7; bool sliding=visible<7;
@@ -172,14 +207,14 @@ namespace Dayglance {
    var headScroll=new ScrollViewer { Content=headings,HorizontalScrollBarVisibility=ScrollBarVisibility.Hidden,VerticalScrollBarVisibility=ScrollBarVisibility.Disabled,Margin=new Thickness(0,0,bar,0) }; headRow.Children.Add(headScroll);
    for(int d=0;d<7;d++) {
     DateTime date=first.AddDays(d); bool today=date==now.Date;
-    var button=UI.Button(date.ToString(column<100?"ddd d":"ddd  d",UI.Culture),()=>Navigate(false,date),today); button.Width=column-4; button.Margin=new Thickness(0); button.ToolTip=UI.T("Show this day"); Canvas.SetLeft(button,d*column); headings.Children.Add(button);
+    var button=UI.Button(date.ToString(column<100?"ddd d":"ddd  d",UI.Culture),()=>Navigate(false,date),today); button.Width=column-4; button.Margin=new Thickness(0); button.ToolTip=UI.T("Show this day"); Canvas.SetLeft(button,d*column); headings.Children.Add(button); weekParts[d].Add(button);
    }
    var grid=new Grid(); grid.ColumnDefinitions.Add(new ColumnDefinition { Width=new GridLength(gutter) }); grid.ColumnDefinitions.Add(new ColumnDefinition()); weekPanel.Children.Add(grid);
    var hours=new Canvas { Width=gutter,Height=canvasHeight+(sliding?hbar:0),Background=UI.Card,ClipToBounds=true };
    var gutterScroll=new ScrollViewer { Content=hours,VerticalScrollBarVisibility=ScrollBarVisibility.Hidden,HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled }; grid.Children.Add(gutterScroll);
    var canvas=new Canvas { Width=width,Height=canvasHeight,Background=UI.Card,ClipToBounds=true };
    for(int d=0;d<7;d++) {
-    var date=first.AddDays(d); if(date==now.Date) { var shade=new Rectangle { Width=column,Height=rowHeight*24,Fill=UI.Hero }; Canvas.SetLeft(shade,d*column); canvas.Children.Add(shade); }
+    var date=first.AddDays(d); if(date==now.Date) { var shade=new Rectangle { Width=column,Height=rowHeight*24,Fill=UI.Hero }; Canvas.SetLeft(shade,d*column); canvas.Children.Add(shade); weekParts[d].Add(shade); }
     canvas.Children.Add(new Line { X1=d*column,X2=d*column,Y1=0,Y2=rowHeight*24,Stroke=UI.Line,StrokeThickness=0.5 });
    }
    for(int hour=0;hour<=24;hour++) {
@@ -202,10 +237,10 @@ namespace Dayglance {
       var glow=new System.Windows.Media.Effects.DropShadowEffect { Color=((SolidColorBrush)UI.Accent).Color,ShadowDepth=0,BlurRadius=16,Opacity=.95 }; halo.Effect=glow;
       glow.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.OpacityProperty,new System.Windows.Media.Animation.DoubleAnimation(.25,1,TimeSpan.FromMilliseconds(1100)) { AutoReverse=true,RepeatBehavior=System.Windows.Media.Animation.RepeatBehavior.Forever,EasingFunction=new System.Windows.Media.Animation.SineEase { EasingMode=System.Windows.Media.Animation.EasingMode.EaseInOut } });
      }
-     Canvas.SetLeft(halo,cardLeft-3); Canvas.SetTop(halo,cardTop-3); Panel.SetZIndex(halo,11); Panel.SetZIndex(card,12); canvas.Children.Add(halo);
+     Canvas.SetLeft(halo,cardLeft-3); Canvas.SetTop(halo,cardTop-3); Panel.SetZIndex(halo,11); Panel.SetZIndex(card,12); canvas.Children.Add(halo); weekParts[d].Add(halo);
      if(first.AddDays(d)==now.Date && weekNowTarget==null) { weekNowTarget=halo; weekNowCard=card; }
     }
-    Canvas.SetLeft(card,cardLeft); Canvas.SetTop(card,cardTop); canvas.Children.Add(card);
+    Canvas.SetLeft(card,cardLeft); Canvas.SetTop(card,cardTop); canvas.Children.Add(card); weekParts[d].Add(card);
    }
    if(now.Date>=first && now.Date<first.AddDays(7)) {
     double y=now.TimeOfDay.TotalHours*rowHeight, x=(int)now.DayOfWeek*column;
@@ -227,10 +262,11 @@ namespace Dayglance {
    var bodyScroll=weekScroll;
    bodyScroll.ScrollChanged+=(s,e)=> { gutterScroll.ScrollToVerticalOffset(e.VerticalOffset); headScroll.ScrollToHorizontalOffset(e.HorizontalOffset); };
    bodyScroll.ScrollToVerticalOffset(offset);
+   weekTargetOffset=0;
    if(sliding) {
     bool recenter=hOffset<0 || Math.Abs(column-weekColumn)>.01 || first!=weekFirst;
     int focus=now.Date>=first&&now.Date<first.AddDays(7)?(int)now.DayOfWeek:(int)selected.DayOfWeek;
-    double target=Math.Max(0,Math.Min(width-visible*column,recenter?(focus+.5)*column-visible*column/2:hOffset));
+    double target=Math.Max(0,Math.Min(width-visible*column,recenter?(focus+.5)*column-visible*column/2:hOffset)); weekTargetOffset=target;
     bodyScroll.ScrollToHorizontalOffset(target); headScroll.ScrollToHorizontalOffset(target);
     // Re-apply once layout has measured the new extent, so the offset is not clamped against the old one.
     Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,new Action(()=> { if(weekScroll!=bodyScroll) return; bodyScroll.ScrollToHorizontalOffset(target); headScroll.ScrollToHorizontalOffset(target); }));
@@ -252,7 +288,8 @@ namespace Dayglance {
      }));
     }
    }
-   weekColumn=column; weekFirst=first;
+   weekColumn=column; weekFirst=first; weekVisibleWidth=visible*column;
+   if(weekEnterFocus>=0 && weekPanel.ActualWidth>100) { int enter=weekEnterFocus; weekEnterFocus=-1; AnimateWeekColumns(enter,true,weekTargetOffset,null); }
    bodyScroll.PreviewMouseWheel+=(s,e)=> {
     if((Keyboard.Modifiers&ModifierKeys.Control)!=0) { e.Handled=true; ZoomSchedule(e.Delta,e.GetPosition(bodyScroll).Y); }
     else if(sliding && (Keyboard.Modifiers&ModifierKeys.Shift)!=0) { e.Handled=true; bodyScroll.ScrollToHorizontalOffset(bodyScroll.HorizontalOffset-e.Delta*.6); }
@@ -469,7 +506,7 @@ namespace Dayglance {
        var incoming=Storage.Read(d.FileName);
        string question=UI.Language=="es"?"¿Reemplazar tu horario con "+incoming.Activities.Count+" actividades? Se guardará un respaldo.":"Replace your schedule with "+incoming.Activities.Count+" imported activities? A backup will be saved.";
        if(MessageBox.Show(w,question,UI.T("Import schedule"),MessageBoxButton.YesNo)!=MessageBoxResult.Yes) return;
-       ImportState(incoming); saved=true; w.Close();
+       Schedule.MigrateReminders(incoming); ImportState(incoming); saved=true; w.Close();
       } catch(Exception ex) { MessageBox.Show(w,UI.T(ex.Message),UI.T("Import failed")); }
      })); p.Children.Add(row);
      p.Children.Add(section("STAYS ON THIS PC")); p.Children.Add(UI.Label(Storage.FilePath+"\n"+UI.T("No account, subscriptions, analytics, or network access. Share the app ZIP with friends; your data stays here."),12,UI.Muted));

@@ -192,7 +192,7 @@ namespace Dayglance {
    var entries=Schedule.ForDay(State,selected); var sig=selected.ToString("O")+now.ToString("yyyyMMddHHmm")+State.Completed.Count+State.Activities.Count;
    if(!force && signature==sig) return; signature=sig;
    string currentKey=active.Count>0?active[0].Key:""; bool activityChanged=!preview && lastCurrentKey!=null && currentKey!=lastCurrentKey; lastCurrentKey=currentKey;
-   pin.Content=State.Pinned?"\uE842":"\uE718"; pin.Foreground=State.Pinned?UI.Accent:UI.Text; pin.ToolTip=UI.T(State.Pinned?"● Pinned on top":"Pin on top"); compact.Content=State.Compact?"\uE740":"\uE73F"; compact.ToolTip=UI.T(State.Compact?"Expand":"Mini widget");
+   pin.Content="\uE718"; pin.Foreground=State.Pinned?UI.Accent:UI.Muted; pin.FontWeight=State.Pinned?FontWeights.Bold:FontWeights.Normal; pin.ToolTip=UI.T(State.Pinned?"● Pinned on top":"Pin on top"); compact.Content=State.Compact?"\uE740":"\uE73F"; compact.ToolTip=UI.T(State.Compact?"Expand":"Mini widget");
    if(State.Compact) { RefreshMini(today,active,now,activityChanged); return; }
    dayLabel.Text=State.WeekView?Schedule.WeekStart(selected).ToString("d MMM",UI.Culture)+" – "+Schedule.WeekStart(selected).AddDays(6).ToString("d MMM yyyy",UI.Culture):selected==now.Date?UI.T("Today"):selected.ToString("ddd, d MMM",UI.Culture);
    hero.Children.Clear(); var hp=new StackPanel(); hp.Children.Add(UI.Label(active.Count>0?"RIGHT NOW" : "ROOM TO BREATHE",10,UI.Accent));
@@ -258,15 +258,25 @@ namespace Dayglance {
     bool isCustom=!palette.Contains(color); custom.Content=isCustom?"✓":"+"; custom.Background=isCustom?UI.B(color):UI.Card; custom.Foreground=isCustom?UI.Ink(color):UI.Text; custom.ToolTip=UI.T("Custom color…")+(isCustom?"  "+color:"");
    };
    markColor(); panel.Children.Add(colors);
-   panel.Children.Add(UI.Label("REMINDER",11,UI.Muted)); var reminder=new Choice(); int[] values={-1,0,5,10,15,30,60}; foreach(int n in values) reminder.Items.Add(n==-1?"Off":n==0?"At start":n+UI.T(" minutes before")); reminder.SelectedIndex=activity==null?1:Array.IndexOf(values,activity.Reminder); if(reminder.SelectedIndex<0) { reminder.Items.Add(activity.Reminder+UI.T(" minutes before")); reminder.SelectedIndex=values.Length; } panel.Children.Add(reminder);
-   int extraMinutes=activity!=null&&activity.ExtraReminders!=null&&activity.ExtraReminders.Count>0?activity.ExtraReminders[0]:0;
-   var extra=UI.Switch("Additional reminder",extraMinutes>0); panel.Children.Add(extra); var advance=UI.Row(); var amount=UI.Input("1"); amount.Width=65; amount.Margin=new Thickness(0,2,8,12); advance.Children.Add(amount); var unit=new Choice { Width=140 }; unit.Items.AddRange(new[]{UI.T("minutes"),UI.T("hours"),UI.T("days")}); unit.SelectedIndex=0;
-   if(extraMinutes>0) { unit.SelectedIndex=extraMinutes%1440==0?2:extraMinutes%60==0?1:0; amount.Text=(extraMinutes/(unit.SelectedIndex==2?1440:unit.SelectedIndex==1?60:1)).ToString(); } advance.Children.Add(unit); advance.Children.Add(UI.Label("before",13,UI.Muted)); panel.Children.Add(advance); Action toggleAdvance=()=> { advance.Visibility=extra.IsChecked==true?Visibility.Visible:Visibility.Collapsed; }; extra.Checked+=(s,e)=>toggleAdvance(); extra.Unchecked+=(s,e)=>toggleAdvance(); toggleAdvance();
+   // Reminders: the main switch notifies when the activity starts; the additional reminder adds one lead time (days + hours + minutes before).
+   panel.Children.Add(UI.Label("REMINDERS",11,UI.Muted));
+   var reminder=UI.Switch("Remind me when it starts",activity==null||activity.Reminder>=0); panel.Children.Add(reminder);
+   int extraMinutes=activity!=null&&activity.ExtraReminders!=null&&activity.ExtraReminders.Count>0?activity.ExtraReminders[0]:activity!=null&&activity.Reminder>0?activity.Reminder:0;
+   var extra=UI.Switch("Additional reminder",extraMinutes>0); panel.Children.Add(extra);
+   var advance=new WrapPanel { Margin=new Thickness(0,0,0,6) };
+   Func<string,int,TextBox> leadBox=(unitName,value)=> { var box=UI.Input(value.ToString()); box.Width=58; box.Margin=new Thickness(0,2,6,8); box.MaxLength=3; box.HorizontalContentAlignment=HorizontalAlignment.Center; advance.Children.Add(box); var label=UI.Label(unitName,13,UI.Muted); label.Margin=new Thickness(0,10,14,8); advance.Children.Add(label); return box; };
+   var leadDays=leadBox(UI.T("days"),extraMinutes/1440); var leadHours=leadBox(UI.T("hours"),extraMinutes%1440/60); var leadMinutes=leadBox(UI.T("minutes"),extraMinutes>0?extraMinutes%60:15);
+   var beforeLabel=UI.Label("before",13,UI.Muted); beforeLabel.Margin=new Thickness(0,10,0,8); advance.Children.Add(beforeLabel); panel.Children.Add(advance);
+   Action toggleAdvance=()=> { advance.Visibility=extra.IsChecked==true?Visibility.Visible:Visibility.Collapsed; }; extra.Checked+=(s,e)=>toggleAdvance(); extra.Unchecked+=(s,e)=>toggleAdvance(); toggleAdvance();
    panel.Children.Add(UI.Label("NOTES (OPTIONAL)",11,UI.Muted)); var notes=UI.Input(activity==null?"":activity.Notes); notes.Height=65; notes.AcceptsReturn=true; notes.TextWrapping=TextWrapping.Wrap; notes.MaxLength=2000; panel.Children.Add(notes);
    var error=UI.Label("",12,UI.B("#FF9E94")); panel.Children.Add(error); var buttons=UI.Row(); buttons.Children.Add(UI.Button("Save activity",()=> {
     try {
-     int extraValue=0; if(extra.IsChecked==true && (!int.TryParse(amount.Text,out extraValue)||extraValue<1||extraValue>43200)) throw new Exception("Use a number from 1 to 43200.");
-     var a=new Activity { Id=activity==null?Guid.NewGuid().ToString("N"):activity.Id,Title=title.Text.Trim(),Start=start.Value,End=end.Value,Days=order.Where((d,i)=>checks[i].IsChecked==true).ToArray(),Date=date.SelectedDate.HasValue?date.SelectedDate.Value.ToString("yyyy-MM-dd",CultureInfo.InvariantCulture):"",Color=color,Notes=notes.Text.Trim(),Reminder=reminder.SelectedIndex<values.Length?values[reminder.SelectedIndex]:activity.Reminder,ExtraReminders=extra.IsChecked==true?new List<int> { extraValue*(unit.SelectedIndex==2?1440:unit.SelectedIndex==1?60:1) }:new List<int>() };
+     int extraValue=0;
+     if(extra.IsChecked==true) {
+      int dd,hh,mm; if(!int.TryParse(leadDays.Text.Trim()==""?"0":leadDays.Text,out dd)||!int.TryParse(leadHours.Text.Trim()==""?"0":leadHours.Text,out hh)||!int.TryParse(leadMinutes.Text.Trim()==""?"0":leadMinutes.Text,out mm)||dd<0||hh<0||mm<0) throw new Exception("Use whole numbers for days, hours and minutes.");
+      extraValue=dd*1440+hh*60+mm; if(extraValue<1||extraValue>43200) throw new Exception("Use one additional reminder, between 1 minute and 30 days.");
+     }
+     var a=new Activity { Id=activity==null?Guid.NewGuid().ToString("N"):activity.Id,Title=title.Text.Trim(),Start=start.Value,End=end.Value,Days=order.Where((d,i)=>checks[i].IsChecked==true).ToArray(),Date=date.SelectedDate.HasValue?date.SelectedDate.Value.ToString("yyyy-MM-dd",CultureInfo.InvariantCulture):"",Color=color,Notes=notes.Text.Trim(),Reminder=reminder.IsChecked==true?0:-1,ExtraReminders=extra.IsChecked==true?new List<int> { extraValue }:new List<int>() };
      var test=new State(); test.Activities.Add(a); Schedule.Validate(test);
      var old=State.Activities.ToList(); if(activity!=null) State.Activities.Remove(activity); State.Activities.Add(a);
      if(!Save()) { State.Activities=old; return; } w.Close(); Refresh(true);
@@ -291,6 +301,7 @@ namespace Dayglance {
     State state=new State();
     try { if(File.Exists(Storage.FilePath)) state=Storage.Read(Storage.FilePath); }
     catch(Exception ex) { MessageBox.Show("Dayglance could not read your schedule. Your file has been left untouched.\n\n"+Storage.FilePath+"\n\n"+ex.Message+"\n\nA previous save may be available in schedule.json.bak.","Dayglance",MessageBoxButton.OK,MessageBoxImage.Error); return; }
+    if(Schedule.MigrateReminders(state)) { try { Storage.Save(state); } catch {} }
     AppDomain.CurrentDomain.UnhandledException+=(s,e)=>ReportCrash(e.ExceptionObject as Exception,true);
     var app=new Application(); app.DispatcherUnhandledException+=(s,e)=> { ReportCrash(e.Exception,false); e.Handled=true; };
     MainWindow window;

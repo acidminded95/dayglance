@@ -111,6 +111,12 @@ namespace Dayglance {
    }
    return result;
   }
+  // Older data used Reminder as "minutes before". The main reminder now fires at the start; a lead time moves to the additional reminder.
+  public static bool MigrateReminders(State state) {
+   bool changed=false;
+   foreach(var a in state.Activities) if(a.Reminder>0) { if(a.ExtraReminders==null) a.ExtraReminders=new List<int>(); if(a.ExtraReminders.Count==0) a.ExtraReminders.Add(a.Reminder); a.Reminder=0; changed=true; }
+   return changed;
+  }
   public static DateTime WeekStart(DateTime date) { return date.Date.AddDays(-(int)date.DayOfWeek); }
   public class Block { public Occurrence Occurrence; public double StartHour,EndHour; public int Lane,Lanes; }
   public static List<Block> Layout(State state,DateTime day) {

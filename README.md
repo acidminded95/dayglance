@@ -15,7 +15,7 @@ Requires Windows 10/11 with .NET Framework 4.8. No installer or administrator ri
 
 - The title bar holds **add**, **manage**, **settings**, **pin**, minimize and hide-to-tray. Hover for labels. Drag the title bar to move the widget; double-click it to switch to the mini widget.
 - Below it, the **Day / Week** switch sits on the left; previous / **Today** / next and the **mini widget** button sit on the right.
-- The **mini widget** is a small window with the current (or next) activity and its progress. Make it taller to also see the previous and upcoming activities (outlined cards); with room for only one card it shows what comes next as a line of text. Hover any card for **Edit**; click a card to open the schedule at that activity, or use the expand button. Switching views and modes fades smoothly, and when a new activity starts its card slides in and pulses. The mini widget and the full schedule each remember their own size and position, including across restarts and monitors.
+- The **mini widget** is a small window with the current (or next) activity and its progress. Make it taller to also see the previous and upcoming activities (outlined cards); with room for only one card it shows what comes next as a line of text. Hover any card for **Edit**; click a card to open the schedule at that activity, or use the expand button. Switching between day and week morphs the focused day's column while the other days slide in or out; switching modes fades smoothly, and when a new activity starts its card slides in and pulses. The mini widget and the full schedule each remember their own size and position, including across restarts and monitors.
 - Day and week views **share one window size**, and switching views never resizes the window. Drag any edge or corner to resize.
 - The week view shrinks to **3–7 day columns**. With fewer than seven it scrolls horizontally (Shift + wheel, or wheel over the day headings) and keeps today centered while you resize.
 - **Ctrl + mouse wheel** over the schedule zooms.
@@ -52,8 +52,9 @@ Open **Settings / Ajustes**. Its tabs group **Appearance** (theme, text size, la
 
 ## Reminders
 
-- Primary reminder: Off, At start, or 5/10/15/30/60 minutes before.
-- **Additional reminder / Aviso adicional:** a second notification in minutes, hours, or days before; range 1 minute to 30 days.
+- **Remind me when it starts** sends a reminder at the activity's start time.
+- **Additional reminder** adds one earlier reminder, set as any mix of days, hours and minutes before the start (1 minute to 30 days).
+- Older schedules that used "N minutes before" are converted automatically: the reminder moves to the additional reminder and the main one fires at the start.
 - Settings controls global reminders and sound. **Test reminder / Probar aviso** uses the currently applied theme and the sound switch's current setting.
 - Notifications are custom Dayglance popups with a matching clock icon and optional original two-note chime. They dismiss after 18 seconds and can reopen the app.
 - Keep the app running, including in the tray. Checks run approximately every 10 seconds. Missed primary reminders catch up while the activity remains active. Extra advance reminders have a 15-minute catch-up window and expire at the activity's start. Completed occurrences do not remind. Saved history prevents duplicates after restart.

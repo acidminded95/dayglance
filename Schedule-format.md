@@ -28,7 +28,7 @@ Import an object with `Version: 1` and an `Activities` array. Dayglance 1 backup
 - `Start` / `End`: local `HH:mm`. Earlier end means next day; equal times are invalid.
 - `Days`: **0 Sunday, 1 Monday, …, 6 Saturday**. Repeats every week with no term start/end.
 - One-time event: `Days: []` and `Date: "2027-01-15"`.
-- `Reminder`: minutes before; `-1` off, `0` at start. Imports allow up to 1,440.
+- `Reminder`: `0` reminds at the start, `-1` off. Older files with minutes before (up to 1,440) are converted to an additional reminder.
 - `ExtraReminders`: optional array with at most one additional lead time, from 1 to 43,200 minutes (30 days); `[]` for none.
 - `Completed` and `Reminded`: optional history arrays; omit for a fresh schedule.
 
