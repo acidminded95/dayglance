@@ -13,23 +13,27 @@ Requires Windows 10/11 with .NET Framework 4.8. No installer or administrator ri
 
 ## Views and controls
 
-- **Day / Día** and **Week / Semana** switch views. Weeks start on Sunday to match the timetable.
-- The expand/compact icon at the **top right, beside Day / Week**, controls both views. Compact week fits 24 hours when space permits; expanded week gives activities more room and scrolls. Very small windows can still need scrolling.
-- **Ctrl + mouse wheel** over the schedule zooms. Compact/expand resets zoom. Ordinary scrolling moves through the schedule.
+- The title bar holds **add**, **manage**, **settings**, **pin**, minimize and hide-to-tray. Hover for labels. Drag the title bar to move the widget; double-click it to toggle compact.
+- Below it, the **Day / Week** switch sits on the left; previous / **Today** / next and the compact/expand toggle sit on the right.
+- Day and week views each **remember their own window size**. Compact/expand changes density, not the window size.
+- The week view shrinks to **3–7 day columns**. With fewer than seven it scrolls horizontally (Shift + wheel, or wheel over the day headings) and keeps today centered while you resize.
+- **Ctrl + mouse wheel** over the schedule zooms. Compact/expand resets zoom.
 - Week view highlights today and shows a live time line. Click a day heading for its day view or an activity to edit it.
-- The bottom row has **+** (add), **≡** (manage), **⚙** (settings), and the pin indicator. Hover for labels.
-- Drag the heading to move the widget. Pinning keeps it above other windows. The widget and dialogs use themed frames. Drag dialogs by their small heading; close with × or Escape.
+- Click the **Right now** card (or the upcoming-activity card) to scroll the day list to that activity. It lands first, or second when the cards before and after it also fit.
+- **Settings → Activity cards** picks a slim color line, a color band with times, or a full-color card for the day view.
 - Day view always highlights the actual current activity. The circle button marks that occurrence done; click again to undo.
 
 ## Activities
 
 Choose start/end hours and minutes from menus. Minutes use five-minute intervals; imported nonstandard minutes are preserved as extra choices. An earlier end means the next day. Equal start/end times are rejected.
 
+Pick a color from the presets and every color already in your schedule, or use **+** to open the color picker for a custom color.
+
 Select repeat-day pills or Every day, Weekdays, or Once. The custom calendar is enabled for one-time activities. Editing a repeating activity changes its whole series, including past views. Single-occurrence overrides are not supported.
 
 ## Themes and language
 
-Open **⚙ Settings / Ajustes**, select a theme and English or Español, then save preferences. Changes apply without restarting.
+Open **Settings / Ajustes** and select a theme, language and card style. The settings window previews your choices, including **Test reminder**, and the widget changes only when you save preferences. Closing without saving discards the preview.
 
 - **Midnight mint:** charcoal and mint.
 - **Terracotta:** clay, cream, and soft greens.
@@ -38,7 +42,7 @@ Open **⚙ Settings / Ajustes**, select a theme and English or Español, then sa
 - **Lavender dusk:** deep purple and lavender.
 - **Cyberpunk:** near-black and orange.
 
-**Create theme / Crear tema** takes a name, background hex color, and accent hex color, such as `#132C25` and `#F4AF8C`. It generates surfaces, borders, and readable text; reports text contrast; and suggests related/complementary accents. Click a suggestion to try it. Save the theme, then save preferences to apply it. Up to 24 custom themes are supported. To make a variation, create another theme from the current one. Activity colors remain independent of interface themes.
+**Create theme / Crear tema** edits four colors with a color picker: **background, cards, text and accent**. Highlight, secondary text and lines are derived from them. The creator offers palette ideas, **Surprise me**, per-color **Suggest** links, accent suggestions, a live mini-widget preview and contrast ratings. *Match cards and text to the background* keeps those two in step while you explore. Select a custom theme to **Edit** or **Delete** it. Up to 24 custom themes are supported. Activity colors remain independent of interface themes.
 
 ## Reminders
 
@@ -72,8 +76,9 @@ Each successful save retains the previous file as `schedule.json.bak`. If data i
 
 `source/Build.ps1` uses the Windows .NET Framework compiler; no NuGet packages or downloads. Optional `-OutputDirectory` writes the build elsewhere. `MakeIcon.ps1` regenerates the executable icon. Use a writable folder.
 
-- `Dayglance.exe --self-test`: **31** schedule, reminder, validation, palette, audio-load, and persistence checks.
-- `Dayglance.exe --ui-test`: **24** checks of controls, calendar, extra reminders, themes, Spanish, backup, zoom, and custom notifications.
-- `Dayglance.exe --showcase <schedule.json>`: **18** rendering checks across all six themes, including 24-hour fit and label spacing; screenshots are written beside the executable.
+- `Dayglance.exe --self-test`: schedule, reminder, validation, palette/color-picker math, audio-load and persistence checks.
+- `Dayglance.exe --ui-test`: controls, calendar, extra reminders, themes and theme creator, Spanish, per-view window sizes, narrow week scrolling, backup, zoom and custom notifications.
+- `Dayglance.exe --showcase <schedule.json>`: rendering checks across all six themes, including 24-hour fit and label spacing. Screenshots are written beside the executable.
 
-All checks passed on the development PC; tests use isolated data folders. Screens were visually reviewed. Audio data loaded successfully. Output volume, startup after actual sign-in, and operation on other PCs were not independently verified.
+Results go to `test-results.txt`, `ui-test-results.txt` and `showcase-results.txt`.
+Tests use isolated data folders.
