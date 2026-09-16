@@ -26,7 +26,7 @@ namespace Dayglance {
    if(sizing || WindowState!=WindowState.Normal || ActualWidth<MinWidth-1 || ActualHeight<1) return;
    State.WindowWidth=ActualWidth; State.WindowHeight=ActualHeight;
   }
-  public void SetView(bool week) { if(State.WeekView==week) return; RememberSize(); State.WeekView=week; weekColumn=-1; BuildView(); if(!preview) Save(); }
+  public void SetView(bool week) { if(State.WeekView==week) return; RememberSize(); State.WeekView=week; weekColumn=-1; focusNow=week; BuildView(); if(!preview) Save(); }
   public void ZoomSchedule(int direction,double anchor) {
    if(!State.WeekView) { dayZoom=Math.Max(.8,Math.Min(1.7,dayZoom*(direction>0?1.1:1/1.1))); list.LayoutTransform=new ScaleTransform(dayZoom,dayZoom); return; }
    double before=weekZoom,previous=weekScroll.VerticalOffset; weekZoom=Math.Max(.65,Math.Min(3,weekZoom*(direction>0?1.15:1/1.15))); RenderWeek(); weekScroll.UpdateLayout(); weekScroll.ScrollToVerticalOffset((previous+anchor)*weekZoom/before-anchor);
