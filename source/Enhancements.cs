@@ -136,8 +136,8 @@ namespace Dayglance {
  public static class BrandIcon {
   [DllImport("user32.dll")] static extern bool DestroyIcon(IntPtr handle);
   public static System.Drawing.Icon Make() {
-   using(var bmp=new System.Drawing.Bitmap(32,32)) using(var g=System.Drawing.Graphics.FromImage(bmp)) using(var pen=new System.Drawing.Pen(System.Drawing.ColorTranslator.FromHtml(UI.Accent.ToString()),3)) {
-    g.SmoothingMode=System.Drawing.Drawing2D.SmoothingMode.AntiAlias; g.Clear(System.Drawing.ColorTranslator.FromHtml(UI.Bg.ToString())); g.DrawEllipse(pen,4,4,24,24); g.DrawLine(pen,16,8,16,16); g.DrawLine(pen,16,16,22,19); var handle=bmp.GetHicon(); try { using(var icon=System.Drawing.Icon.FromHandle(handle)) return (System.Drawing.Icon)icon.Clone(); } finally { DestroyIcon(handle); }
+   using(var bmp=new System.Drawing.Bitmap(32,32,System.Drawing.Imaging.PixelFormat.Format32bppArgb)) using(var g=System.Drawing.Graphics.FromImage(bmp)) using(var pen=new System.Drawing.Pen(System.Drawing.ColorTranslator.FromHtml(UI.Accent.ToString()),3)) {
+    g.SmoothingMode=System.Drawing.Drawing2D.SmoothingMode.AntiAlias; g.Clear(System.Drawing.Color.Transparent); using(var disc=new System.Drawing.SolidBrush(System.Drawing.ColorTranslator.FromHtml(UI.Bg.ToString()))) g.FillEllipse(disc,1,1,30,30); g.DrawEllipse(pen,4,4,24,24); g.DrawLine(pen,16,8,16,16); g.DrawLine(pen,16,16,22,19); var handle=bmp.GetHicon(); try { using(var icon=System.Drawing.Icon.FromHandle(handle)) return (System.Drawing.Icon)icon.Clone(); } finally { DestroyIcon(handle); }
    }
   }
   public static UIElement Visual() {

@@ -231,8 +231,18 @@ namespace Dayglance {
     State state=new State();
     try { if(File.Exists(Storage.FilePath)) state=Storage.Read(Storage.FilePath); }
     catch(Exception ex) { MessageBox.Show("Dayglance could not read your schedule. Your file has been left untouched.\n\n"+Storage.FilePath+"\n\n"+ex.Message+"\n\nA previous save may be available in schedule.json.bak.","Dayglance",MessageBoxButton.OK,MessageBoxImage.Error); return; }
-    var app=new Application(); app.DispatcherUnhandledException+=(s,e)=> { MessageBox.Show("Dayglance encountered an error:\n"+e.Exception.Message,"Dayglance"); e.Handled=true; }; app.Run(new MainWindow(state,false));
+    AppDomain.CurrentDomain.UnhandledException+=(s,e)=>ReportCrash(e.ExceptionObject as Exception,true);
+    var app=new Application(); app.DispatcherUnhandledException+=(s,e)=> { ReportCrash(e.Exception,false); e.Handled=true; };
+    MainWindow window;
+    try { window=new MainWindow(state,false); } catch(Exception ex) { ReportCrash(ex,true); return; }
+    app.Run(window);
    }
+  }
+  // Startup failures used to exit silently; log the full exception and tell the user where it is.
+  static void ReportCrash(Exception ex,bool fatal) {
+   if(ex==null) return; string log=Path.Combine(Storage.Folder,"crash.log");
+   try { Directory.CreateDirectory(Storage.Folder); File.AppendAllText(log,DateTime.Now.ToString("O")+(fatal?"  FATAL":"")+"\r\n"+ex+"\r\n\r\n"); } catch {}
+   try { MessageBox.Show("Dayglance encountered an error"+(fatal?" and has to close":"")+":\n\n"+ex.GetType().Name+": "+ex.Message+"\n\nDetails were saved to:\n"+log,"Dayglance",MessageBoxButton.OK,MessageBoxImage.Error); } catch {}
   }
   static void Preview(string path) {
    var s=new State(); var now=DateTime.Now;

@@ -2,7 +2,9 @@ Add-Type -AssemblyName System.Drawing
 $bitmap = New-Object System.Drawing.Bitmap 64,64
 $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
 $graphics.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
-$graphics.Clear([System.Drawing.ColorTranslator]::FromHtml('#11151D'))
+$graphics.Clear([System.Drawing.Color]::Transparent)
+$disc = New-Object System.Drawing.SolidBrush ([System.Drawing.ColorTranslator]::FromHtml('#11151D'))
+$graphics.FillEllipse($disc,1,1,62,62)
 $pen = New-Object System.Drawing.Pen ([System.Drawing.ColorTranslator]::FromHtml('#A4E9CC')),5
 $graphics.DrawEllipse($pen,10,10,44,44)
 $graphics.DrawLine($pen,32,18,32,32)

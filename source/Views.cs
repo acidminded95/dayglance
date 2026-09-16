@@ -30,7 +30,17 @@ namespace Dayglance {
     Width=Math.Min(width,area.Width); Height=Math.Min(height,area.Height);
     double vl=SystemParameters.VirtualScreenLeft,vt=SystemParameters.VirtualScreenTop,vr=vl+SystemParameters.VirtualScreenWidth,vb=vt+SystemParameters.VirtualScreenHeight;
     Left=Math.Max(vl,Math.Min(left,vr-Width)); Top=Math.Max(vt,Math.Min(top,vb-Height));
+    // The virtual screen can include dead corners between monitors: if the title bar would not land on any monitor, place the window on the primary one.
+    if(!OnSomeScreen(Left,Top,Width)) { Left=Math.Max(area.Left,area.Right-Width-24); Top=area.Top+24; }
    } finally { sizing=false; }
+  }
+  static bool OnSomeScreen(double left,double top,double width) {
+   try {
+    if(double.IsNaN(left)||double.IsNaN(top)) return false;
+    double dpi=System.Windows.Forms.Screen.PrimaryScreen.Bounds.Width/Math.Max(1,SystemParameters.PrimaryScreenWidth);
+    var bar=new System.Drawing.Rectangle((int)((left+24)*dpi),(int)(top*dpi),(int)(Math.Max(60,width-48)*dpi),(int)(32*dpi));
+    return System.Windows.Forms.Screen.AllScreens.Any(sc=>sc.WorkingArea.IntersectsWith(bar));
+   } catch { return true; }
   }
   void RememberSize() {
    if(sizing || WindowState!=WindowState.Normal || ActualWidth<1 || ActualHeight<1 || double.IsNaN(Left) || double.IsNaN(Top)) return;
