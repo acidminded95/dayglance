@@ -13,15 +13,16 @@ Requires Windows 10/11 with .NET Framework 4.8. No installer or administrator ri
 
 ## Views and controls
 
-- The title bar holds **add**, **manage**, **settings**, **pin**, minimize and hide-to-tray. Hover for labels. Drag the title bar to move the widget; double-click it to toggle compact.
-- Below it, the **Day / Week** switch sits on the left; previous / **Today** / next and the compact/expand toggle sit on the right.
-- Day and week views **share one window size**, and switching views never resizes the window. Drag any edge or corner to resize. Compact/expand changes density, not the window size.
+- The title bar holds **add**, **manage**, **settings**, **pin**, minimize and hide-to-tray. Hover for labels. Drag the title bar to move the widget; double-click it to switch to the mini widget.
+- Below it, the **Day / Week** switch sits on the left; previous / **Today** / next and the **mini widget** button sit on the right.
+- The **mini widget** is a small window with the current (or next) activity, its progress and what comes after. Click the card to open the schedule at that activity, or use the expand button. The mini widget and the full schedule each remember their own size and position, including across restarts and monitors.
+- Day and week views **share one window size**, and switching views never resizes the window. Drag any edge or corner to resize.
 - The week view shrinks to **3–7 day columns**. With fewer than seven it scrolls horizontally (Shift + wheel, or wheel over the day headings) and keeps today centered while you resize.
-- **Ctrl + mouse wheel** over the schedule zooms. Compact/expand resets zoom.
+- **Ctrl + mouse wheel** over the schedule zooms.
 - Week view highlights today and shows a live time line. Click a day heading for its day view, an activity to edit it, or an empty slot to add a one-hour activity starting at that hour. **Today** re-centers the week on today.
 - **Settings → Current activity in week view** shows the running activity with the time line and dot, an accent outline, or a pulsing accent glow.
 - The running activity is always outlined in the accent color. Click the **Right now** card (or the upcoming-activity card) to scroll to it; it lands first, or second when its neighbors also fit, and pulses briefly.
-- Week view shows a compact **Right now / Up next** card beside the week range. Clicking it scrolls to the activity, pulses it and briefly dims the rest of the week.
+- Week view shows a compact **Right now / Up next** card beside the week range. Clicking it scrolls to the activity, pulses its glow and briefly dims everything else in the week.
 - In day view, hover the space between two activities with free time to reveal **+ start – end**; click to add a one-hour activity at the start of that gap (shorter if the gap is shorter).
 - **Back / forward:** after jumping between views or days (day headings, Day/Week, Today), use the mouse back/forward buttons or Alt + ← / →.
 - Settings, Manage and the activity editor close without saving when you click the widget behind them. The **Save preferences** button sits at the bottom of Settings.
@@ -38,7 +39,7 @@ Select repeat-day pills or Every day, Weekdays, or Once. The custom calendar is 
 
 ## Themes and language
 
-Open **Settings / Ajustes** and select a theme, language and card style. The settings window previews your choices, including **Test reminder**, and the widget changes only when you save preferences. Closing without saving discards the preview.
+Open **Settings / Ajustes**. Its tabs group **Appearance** (theme, text size, language), **Schedule** (card style, current-activity highlight), **Reminders** (reminders, sound, startup) and **Data** (import/export). The settings window previews your choices, including **Test reminder**, and the widget changes only when you save preferences. Closing without saving discards the preview.
 
 - **Midnight mint:** charcoal and mint.
 - **Terracotta:** clay, cream, and soft greens.

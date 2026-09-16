@@ -26,7 +26,7 @@ namespace Dayglance {
    layout=new DockPanel(); var head=new Grid { Margin=new Thickness(18,12,12,4),Background=Brushes.Transparent }; head.ColumnDefinitions.Add(new ColumnDefinition()); head.ColumnDefinitions.Add(new ColumnDefinition { Width=GridLength.Auto });
    var title=UI.Label("",12,UI.Muted); title.SetBinding(TextBlock.TextProperty,new System.Windows.Data.Binding("Title") { Source=this }); title.VerticalAlignment=VerticalAlignment.Center; head.Children.Add(title);
    head.MouseLeftButtonDown+=(s,e)=> { if(e.LeftButton==MouseButtonState.Pressed) DragMove(); }; var close=UI.Button("×",()=>Close()); close.ToolTip=UI.T("Close"); Grid.SetColumn(close,1); head.Children.Add(close); DockPanel.SetDock(head,Dock.Top); layout.Children.Add(head); layout.Children.Add(body);
-   base.Content=new Border { Child=layout,BorderBrush=UI.Line,BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(12),Background=UI.Bg };
+   base.Content=new Border { LayoutTransform=new ScaleTransform(UI.Scale,UI.Scale),Child=layout,BorderBrush=UI.Line,BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(12),Background=UI.Bg };
   }
  }
  public class TimeField : StackPanel {
@@ -157,10 +157,10 @@ namespace Dayglance {
  public class ReminderToast : Window {
   static List<ReminderToast> visible=new List<ReminderToast>();
   public ReminderToast(string title,string detail,Action open,bool sound) {
-   Width=370; SizeToContent=SizeToContent.Height; WindowStyle=WindowStyle.None; AllowsTransparency=true; ResizeMode=ResizeMode.NoResize; ShowInTaskbar=false; ShowActivated=false; Topmost=true; Background=Brushes.Transparent;
+   Width=370*UI.Scale; SizeToContent=SizeToContent.Height; WindowStyle=WindowStyle.None; AllowsTransparency=true; ResizeMode=ResizeMode.NoResize; ShowInTaskbar=false; ShowActivated=false; Topmost=true; Background=Brushes.Transparent;
    var panel=new StackPanel(); var top=new DockPanel(); var dismiss=UI.Button("×",()=>Close()); dismiss.ToolTip=UI.T("Dismiss"); DockPanel.SetDock(dismiss,Dock.Right); top.Children.Add(dismiss); top.Children.Add(BrandIcon.Visual()); var brand=UI.Label("dayglance",14,UI.Text); brand.VerticalAlignment=VerticalAlignment.Center; top.Children.Add(brand); panel.Children.Add(top);
    panel.Children.Add(UI.Label(title,20,UI.Text)); panel.Children.Add(UI.Label(detail,13,UI.Muted)); panel.Children.Add(UI.Button("Open Dayglance",()=> { open(); Close(); },true));
-   Content=new Border { Child=panel,Background=UI.Hero,BorderBrush=UI.Accent,BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(14),Padding=new Thickness(18) };
+   Content=new Border { LayoutTransform=new ScaleTransform(UI.Scale,UI.Scale),Child=panel,Background=UI.Hero,BorderBrush=UI.Accent,BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(14),Padding=new Thickness(18) };
    while(visible.Count>=3) visible[0].Close(); visible.Add(this); Closed+=(s,e)=> { visible.Remove(this); Place(); };
    var timer=new DispatcherTimer { Interval=TimeSpan.FromSeconds(18) }; timer.Tick+=(s,e)=> { timer.Stop(); Close(); }; Closed+=(s,e)=>timer.Stop(); Loaded+=(s,e)=>Place(); Show(); timer.Start(); if(sound) Chime.Play();
   }

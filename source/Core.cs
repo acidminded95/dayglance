@@ -38,8 +38,13 @@ namespace Dayglance {
   public string CardStyle { get; set; }
   public double WindowWidth { get; set; }
   public double WindowHeight { get; set; }
+  public double MiniLeft { get; set; }
+  public double MiniTop { get; set; }
+  public double MiniWidth { get; set; }
+  public double MiniHeight { get; set; }
+  public double UiScale { get; set; }
   public string WeekHighlight { get; set; }
-  public State() { Version=1; Activities=new List<Activity>(); Completed=new List<string>(); Reminded=new List<string>(); CustomThemes=new List<Theme>(); Notifications=true; Pinned=true; Left=80; Top=80; Theme="midnight"; Language="en"; CardStyle="stripe"; WeekHighlight="line"; }
+  public State() { Version=1; Activities=new List<Activity>(); Completed=new List<string>(); Reminded=new List<string>(); CustomThemes=new List<Theme>(); Notifications=true; Pinned=true; Left=80; Top=80; Theme="midnight"; Language="en"; CardStyle="stripe"; WeekHighlight="line"; UiScale=1; }
  }
  public class Occurrence {
   public Activity Activity;
@@ -92,7 +97,9 @@ namespace Dayglance {
    if(double.IsNaN(s.Top)||double.IsInfinity(s.Top)) s.Top=80;
    if(s.CardStyle!="band" && s.CardStyle!="full") s.CardStyle="stripe";
    if(s.WeekHighlight!="outline" && s.WeekHighlight!="glow") s.WeekHighlight="line";
-   foreach(var size in new[]{s.WindowWidth,s.WindowHeight}) if(double.IsNaN(size)||double.IsInfinity(size)||size<0||size>20000) { s.WindowWidth=s.WindowHeight=0; break; }
+   foreach(var size in new[]{s.WindowWidth,s.WindowHeight,s.MiniWidth,s.MiniHeight}) if(double.IsNaN(size)||double.IsInfinity(size)||size<0||size>20000) { s.WindowWidth=s.WindowHeight=s.MiniWidth=s.MiniHeight=0; break; }
+   if(double.IsNaN(s.MiniLeft)||double.IsInfinity(s.MiniLeft)||double.IsNaN(s.MiniTop)||double.IsInfinity(s.MiniTop)) { s.MiniLeft=s.MiniTop=0; s.MiniWidth=0; }
+   if(double.IsNaN(s.UiScale)||s.UiScale<.85||s.UiScale>1.35) s.UiScale=1;
   }
   public class ReminderEvent { public Occurrence Occurrence; public string Key; public bool Advance; }
   public static List<ReminderEvent> Reminders(State state,DateTime now) {

@@ -123,7 +123,7 @@ namespace Dayglance {
   // Opens a picker in a light-dismiss popup under the target. Changes are reported live.
   public static Popup Show(FrameworkElement target,string initial,IEnumerable<string> swatches,Action<string> changed) {
    var picker=new ColorPicker(initial,swatches); picker.Changed+=changed;
-   var popup=new Popup { PlacementTarget=target,Placement=PlacementMode.Bottom,StaysOpen=false,AllowsTransparency=true,Child=new Border { Child=picker,Background=UI.Card,BorderBrush=UI.Line,BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(12),Padding=new Thickness(12),Margin=new Thickness(0,4,0,0) } };
+   var popup=new Popup { PlacementTarget=target,Placement=PlacementMode.Bottom,StaysOpen=false,AllowsTransparency=true,Child=new Border { LayoutTransform=new ScaleTransform(UI.Scale,UI.Scale),Child=picker,Background=UI.Card,BorderBrush=UI.Line,BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(12),Padding=new Thickness(12),Margin=new Thickness(0,4,0,0) } };
    popup.KeyDown+=(s,e)=> { if(e.Key==Key.Escape || e.Key==Key.Enter) { popup.IsOpen=false; e.Handled=true; } };
    popup.IsOpen=true; return popup;
   }

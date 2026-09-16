@@ -59,7 +59,7 @@ namespace Dayglance {
    element.BeginAnimation(UIElement.OpacityProperty,new System.Windows.Media.Animation.DoubleAnimation(1,1,TimeSpan.FromMilliseconds(2520)) { FillBehavior=System.Windows.Media.Animation.FillBehavior.Stop });
    glow.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.BlurRadiusProperty,blur);
   }
-  public static DialogWindow Dialog(Window owner,string title,double width,double height) { return new DialogWindow { Owner=owner,Title=T(title),Width=width,Height=Math.Min(height,SystemParameters.WorkArea.Height),MinWidth=width,MinHeight=320,WindowStartupLocation=WindowStartupLocation.CenterOwner,Background=Brushes.Transparent,Foreground=Text,FontFamily=new FontFamily("Segoe UI"),ResizeMode=ResizeMode.CanResize,ShowInTaskbar=false }; }
+  public static DialogWindow Dialog(Window owner,string title,double width,double height) { return new DialogWindow { Owner=owner,Title=T(title),Width=width*Scale,Height=Math.Min(height*Scale,SystemParameters.WorkArea.Height),MinWidth=Math.Min(width*Scale,SystemParameters.WorkArea.Width),MinHeight=320,WindowStartupLocation=WindowStartupLocation.CenterOwner,Background=Brushes.Transparent,Foreground=Text,FontFamily=new FontFamily("Segoe UI"),ResizeMode=ResizeMode.CanResize,ShowInTaskbar=false }; }
  }
  public partial class MainWindow : Window {
   public State State;
@@ -77,18 +77,18 @@ namespace Dayglance {
   public MainWindow(State state,bool previewMode) {
    State=state; UI.Apply(state); preview=previewMode; Title="Dayglance"; Width=440; Height=760; MinWidth=380; MinHeight=340; WindowStyle=WindowStyle.None; AllowsTransparency=true; ResizeMode=ResizeMode.CanResizeWithGrip;
    Background=UI.Bg; Foreground=UI.Text; FontFamily=new FontFamily("Segoe UI"); Topmost=state.Pinned;
-   var area=SystemParameters.WorkArea; Height=Math.Min(Height,area.Height); Left=Math.Max(area.Left,Math.Min(state.Left,area.Right-Width)); Top=Math.Max(area.Top,Math.Min(state.Top,area.Bottom-Height));
    BuildView();
    if(!preview) {
     tray=new Forms.NotifyIcon { Text="Dayglance — your day at a glance",Icon=BrandIcon.Make(),Visible=true }; tray.DoubleClick+=(s,e)=>Restore(); var menu=new Forms.ContextMenuStrip(); menu.Items.Add("Open Dayglance",null,(s,e)=>Restore()); menu.Items.Add("Add activity",null,(s,e)=> { Restore(); Edit(null); }); menu.Items.Add("Quit",null,(s,e)=> { exiting=true; Close(); }); tray.ContextMenuStrip=menu; tray.BalloonTipClicked+=(s,e)=>Restore();
-    Closing+=(s,e)=> { if(!exiting) { e.Cancel=true; Hide(); } PersistPosition(); }; Closed+=(s,e)=> { timer.Stop(); tray.Dispose(); };
+    Closing+=(s,e)=> { PersistPosition(); if(!exiting) { e.Cancel=true; Hide(); } }; Closed+=(s,e)=> { timer.Stop(); tray.Dispose(); };
     timer=new DispatcherTimer { Interval=TimeSpan.FromSeconds(10) }; timer.Tick+=(s,e)=> { Refresh(false); Notify(); }; timer.Start();
    }
-   UI.EnableBorderResize(this); EnableLightDismiss(); EnableHistoryInput(); SetSize(); Refresh(true); UpdateTrayLanguage(); SizeChanged+=(s,e)=> { RememberSize(); if(State.WeekView && weekPanel!=null) RenderWeek(); };
+   UI.EnableBorderResize(this); EnableLightDismiss(); EnableHistoryInput(); SetSize(); Refresh(true); UpdateTrayLanguage(); SizeChanged+=(s,e)=> { RememberSize(); QueueGeometrySave(); if(State.WeekView && weekPanel!=null) RenderWeek(); }; LocationChanged+=(s,e)=> { RememberSize(); QueueGeometrySave(); };
   }
   void BuildView() {
    UI.Apply(State); Background=UI.Bg; Foreground=UI.Text;
-   var root=new DockPanel { Margin=new Thickness(18,10,18,12),LastChildFill=true }; Content=new Border { BorderBrush=UI.Line,BorderThickness=new Thickness(1),Child=root };
+   if(State.Compact) { BuildMini(); return; }
+   var root=new DockPanel { Margin=new Thickness(18,10,18,12),LastChildFill=true }; Content=new Border { BorderBrush=UI.Line,BorderThickness=new Thickness(1),Child=root,LayoutTransform=new ScaleTransform(UI.Scale,UI.Scale) };
    // Title bar: brand (drag handle) on the left, actions and window controls on the right.
    var header=new DockPanel { Margin=new Thickness(0,0,0,10),Background=Brushes.Transparent,Cursor=Cursors.SizeAll }; header.ToolTip=UI.T("Drag to position your widget");
    header.MouseLeftButtonDown+=(s,e)=> { if(e.ClickCount==2) ToggleCompact(); else DragMove(); };
@@ -109,7 +109,7 @@ namespace Dayglance {
    nav.Children.Add(UI.Icon("\uE76B","Previous",()=> { selected=selected.AddDays(State.WeekView?-7:-1); Refresh(true); }));
    var todayButton=UI.Button("Today",()=> { weekColumn=-1; if(!Navigate(State.WeekView,DateTime.Today)) Refresh(true); }); todayButton.Margin=new Thickness(2,0,2,0); todayButton.MinHeight=30; todayButton.Background=Brushes.Transparent; nav.Children.Add(todayButton);
    nav.Children.Add(UI.Icon("\uE76C","Next",()=> { selected=selected.AddDays(State.WeekView?7:1); Refresh(true); }));
-   compact=UI.Icon("\uE73F","Compact",ToggleCompact); compact.Margin=new Thickness(6,0,0,0); nav.Children.Add(compact);
+   compact=UI.Icon("\uE73F","Mini widget",ToggleCompact); compact.Margin=new Thickness(6,0,0,0); nav.Children.Add(compact);
    DockPanel.SetDock(nav,Dock.Right); toolbar.Children.Add(nav);
    var views=UI.Row(); var dayButton=UI.Button("Day",()=>Navigate(false,selected),!State.WeekView); var weekButton=UI.Button("Week",()=>Navigate(true,selected),State.WeekView);
    foreach(var b in new[]{dayButton,weekButton}) { b.Margin=new Thickness(0); b.MinHeight=28; b.Padding=new Thickness(4,2,4,2); if(b.Background!=UI.Accent) b.Background=Brushes.Transparent; views.Children.Add(b); }
@@ -128,24 +128,26 @@ namespace Dayglance {
    Refresh(true);
   }
   void Restore() { Show(); WindowState=WindowState.Normal; Activate(); }
-  void PersistPosition() { State.Left=Left; State.Top=Top; RememberSize(); Save(); }
+  void PersistPosition() { RememberSize(); Save(); }
   bool Save() { try { Storage.Save(State); return true; } catch(Exception ex) { MessageBox.Show(this,UI.T("Your changes could not be saved.")+"\n\n"+UI.T(ex.Message),"Dayglance",MessageBoxButton.OK,MessageBoxImage.Error); return false; } }
-  void ToggleCompact() { State.Compact=!State.Compact; weekZoom=1; dayZoom=1; if(State.WeekView) { focusNow=true; weekColumn=-1; } BuildView(); Save(); }
+  // The compact button switches between the full schedule and a small "right now" widget; each keeps its own size and position.
+  void ToggleCompact() { RememberSize(); State.Compact=!State.Compact; if(!State.Compact && State.WeekView) { focusNow=true; weekColumn=-1; } SetSize(); BuildView(); if(!preview) Save(); }
   public void Refresh(bool force) {
    if(settingsOpen && !force) return;
    DateTime now=DateTime.Now; if(selected==lastToday) selected=now.Date; lastToday=now.Date; clockLabel.Text=now.ToString("ddd d MMM  ·  HH:mm",UI.Culture).ToUpperInvariant();
    var today=Schedule.ForDay(State,now.Date); var active=today.Where(o=>o.Start<=now && o.End>now && !State.Completed.Contains(o.Key)).ToList();
    var entries=Schedule.ForDay(State,selected); var sig=selected.ToString("O")+now.ToString("yyyyMMddHHmm")+State.Completed.Count+State.Activities.Count;
    if(!force && signature==sig) return; signature=sig;
-   pin.Content=State.Pinned?"\uE842":"\uE718"; pin.Foreground=State.Pinned?UI.Accent:UI.Text; pin.ToolTip=UI.T(State.Pinned?"● Pinned on top":"Pin on top"); compact.Content=State.Compact?"\uE740":"\uE73F"; compact.ToolTip=UI.T(State.Compact?"Expand":"Compact")+" · Ctrl + scroll";
+   pin.Content=State.Pinned?"\uE842":"\uE718"; pin.Foreground=State.Pinned?UI.Accent:UI.Text; pin.ToolTip=UI.T(State.Pinned?"● Pinned on top":"Pin on top"); compact.Content=State.Compact?"\uE740":"\uE73F"; compact.ToolTip=UI.T(State.Compact?"Expand":"Mini widget");
+   if(State.Compact) { RefreshMini(today,active,now); return; }
    dayLabel.Text=State.WeekView?Schedule.WeekStart(selected).ToString("d MMM",UI.Culture)+" – "+Schedule.WeekStart(selected).AddDays(6).ToString("d MMM yyyy",UI.Culture):selected==now.Date?UI.T("Today"):selected.ToString("ddd, d MMM",UI.Culture);
    hero.Children.Clear(); var hp=new StackPanel(); hp.Children.Add(UI.Label(active.Count>0?"RIGHT NOW" : "ROOM TO BREATHE",10,UI.Accent));
    if(active.Count>0) {
-    var current=active[0]; hp.Children.Add(UI.Label(current.Activity.Title,State.Compact?19:24,UI.Text)); hp.Children.Add(UI.Label(current.Start.ToString("HH:mm")+" – "+current.End.ToString("HH:mm")+"  ·  "+Math.Ceiling((current.End-now).TotalMinutes)+UI.T(" min left"),12,UI.Muted));
+    var current=active[0]; hp.Children.Add(UI.Label(current.Activity.Title,24,UI.Text)); hp.Children.Add(UI.Label(current.Start.ToString("HH:mm")+" – "+current.End.ToString("HH:mm")+"  ·  "+Math.Ceiling((current.End-now).TotalMinutes)+UI.T(" min left"),12,UI.Muted));
     var bar=new ProgressBar { Minimum=0,Maximum=100,Value=(now-current.Start).TotalSeconds/(current.End-current.Start).TotalSeconds*100,Height=4,Foreground=UI.B(current.Activity.Color),Background=UI.Line,BorderThickness=new Thickness(0),Margin=new Thickness(0,6,0,8) }; hp.Children.Add(bar);
     if(active.Count>1) hp.Children.Add(UI.Label(UI.T("Also now: ")+string.Join(", ",active.Skip(1).Select(o=>o.Activity.Title)),11,UI.Muted));
    } else {
-    hp.Children.Add(UI.Label(State.Activities.Count==0?"Make room for your day.":"You’re between activities.",State.Compact?18:22,UI.Text));
+    hp.Children.Add(UI.Label(State.Activities.Count==0?"Make room for your day.":"You’re between activities.",22,UI.Text));
     Occurrence next=null; for(int i=0;i<8 && next==null;i++) next=Schedule.ForDay(State,now.Date.AddDays(i)).FirstOrDefault(o=>o.Start>now&&!State.Completed.Contains(o.Key));
     hp.Children.Add(UI.Label(next==null?"Add an activity to give your day a little structure.":UI.T("Next: ")+next.Activity.Title+" · "+(next.Start.Date==now.Date?"":next.Start.ToString("ddd ",UI.Culture))+next.Start.ToString("HH:mm"),12,UI.Muted));
    }
