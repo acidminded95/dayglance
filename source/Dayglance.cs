@@ -68,7 +68,7 @@ namespace Dayglance {
   StackPanel list,hero;
   TextBlock dayLabel,clockLabel,summary;
   ScrollViewer scroll;
-  Button pin,compact,backButton,forwardButton;
+  Button pin,compact;
   Border weekNow;
   DispatcherTimer timer;
   Forms.NotifyIcon tray;
@@ -113,7 +113,6 @@ namespace Dayglance {
    DockPanel.SetDock(nav,Dock.Right); toolbar.Children.Add(nav);
    var views=UI.Row(); var dayButton=UI.Button("Day",()=>Navigate(false,selected),!State.WeekView); var weekButton=UI.Button("Week",()=>Navigate(true,selected),State.WeekView);
    foreach(var b in new[]{dayButton,weekButton}) { b.Margin=new Thickness(0); b.MinHeight=28; b.Padding=new Thickness(4,2,4,2); if(b.Background!=UI.Accent) b.Background=Brushes.Transparent; views.Children.Add(b); }
-   var history=UI.Row(); history.VerticalAlignment=VerticalAlignment.Center; backButton=UI.Icon("\uE72B","Back",GoBack); backButton.Margin=new Thickness(0,0,2,0); forwardButton=UI.Icon("\uE72A","Forward",GoForward); forwardButton.Margin=new Thickness(0,0,6,0); history.Children.Add(backButton); history.Children.Add(forwardButton); DockPanel.SetDock(history,Dock.Left); toolbar.Children.Add(history);
    var segmented=new Border { Child=views,Background=UI.Card,CornerRadius=new CornerRadius(9),Padding=new Thickness(3),HorizontalAlignment=HorizontalAlignment.Left,VerticalAlignment=VerticalAlignment.Center }; toolbar.Children.Add(segmented);
    top.Children.Add(toolbar);
    var dateRow=new DockPanel(); weekNow=new Border { Background=UI.Hero,CornerRadius=new CornerRadius(10),Padding=new Thickness(10,6,12,6),Margin=new Thickness(10,0,0,0),MaxWidth=240,VerticalAlignment=VerticalAlignment.Bottom,Cursor=Cursors.Hand,Visibility=Visibility.Collapsed,ToolTip=UI.T("Show in schedule") };
@@ -154,7 +153,7 @@ namespace Dayglance {
    var focusTarget=active.Count>0?active[0]:today.FirstOrDefault(o=>o.Start>now&&!State.Completed.Contains(o.Key));
    if(focusTarget!=null) { string focusKey=focusTarget.Key; heroBox.Cursor=Cursors.Hand; heroBox.ToolTip=UI.T("Show in schedule"); heroBox.MouseLeftButtonUp+=(s,e)=>FocusActivity(focusKey,true); }
    summary.Text=UI.T("SCHEDULE")+"  /  "+entries.Count+" "+UI.T("ACTIVITIES")+"  ·  "+entries.Count(o=>State.Completed.Contains(o.Key))+" "+UI.T("DONE");
-   UpdateHistoryButtons(); weekNow.Visibility=State.WeekView?Visibility.Visible:Visibility.Collapsed; if(State.WeekView) FillWeekNow(active,now);
+   weekNow.Visibility=State.WeekView?Visibility.Visible:Visibility.Collapsed; if(State.WeekView) FillWeekNow(active,now);
    if(State.WeekView) { summary.Text=UI.T("Click an activity to edit or an empty slot to add one."); RenderWeek(); return; }
    var offset=scroll.VerticalOffset; list.Children.Clear();
    if(entries.Count==0) { var empty=new StackPanel { Margin=new Thickness(8,15,8,0) }; empty.Children.Add(UI.Label("A fresh page.",20,UI.Text)); empty.Children.Add(UI.Label("Use + Activity to add something, or Manage to edit your weekly routine.",13,UI.Muted)); list.Children.Add(empty); }
@@ -180,7 +179,7 @@ namespace Dayglance {
   }
   void Edit(Activity activity) { Edit(activity,null); }
   void Edit(Activity activity,DateTime? slot,DateTime? slotEnd=null) {
-   var w=UI.Dialog(this,activity==null?"Add activity":"Edit activity",480,850); var panel=new StackPanel { Margin=new Thickness(24) }; w.Content=new ScrollViewer { Content=panel,VerticalScrollBarVisibility=ScrollBarVisibility.Auto };
+   var w=UI.Dialog(this,activity==null?"Add activity":"Edit activity",480,850); w.LightDismiss=true; var panel=new StackPanel { Margin=new Thickness(24) }; w.Content=new ScrollViewer { Content=panel,VerticalScrollBarVisibility=ScrollBarVisibility.Auto };
    panel.Children.Add(UI.Label(activity==null?"A little structure.":"Make it yours.",25,UI.Text)); panel.Children.Add(UI.Label("ACTIVITY NAME",11,UI.Muted)); var title=UI.Input(activity==null?"":activity.Title); title.MaxLength=120; panel.Children.Add(title);
    var times=UI.Row(); var start=new TimeField(activity!=null?activity.Start:slot.HasValue?slot.Value.ToString("HH:mm"):"09:00"); start.Width=180; var end=new TimeField(activity!=null?activity.End:slot.HasValue?(slotEnd.HasValue?slotEnd.Value:slot.Value.AddHours(1)).ToString("HH:mm"):"10:00"); end.Width=180; end.Margin=new Thickness(12,0,0,0); panel.Children.Add(UI.Label("START / END  ·  24-HOUR TIME (HH:MM)",11,UI.Muted)); times.Children.Add(start); times.Children.Add(end); panel.Children.Add(times);
    panel.Children.Add(UI.Label("An earlier end time finishes the following day.",11,UI.Muted));

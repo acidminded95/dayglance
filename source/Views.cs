@@ -124,7 +124,7 @@ namespace Dayglance {
       double view=bodyScroll.ViewportHeight; if(view<1) return;
       double wanted=focusBottom-focusTop<=view-24?(focusTop+focusBottom)/2-view/2:focusTop-12;
       bodyScroll.ScrollToVerticalOffset(Math.Max(0,Math.Min(bodyScroll.ScrollableHeight,wanted)));
-      if(pulseNow) { pulseNow=false; UI.Attention(weekNowTarget??(UIElement)weekNowDot); }
+      if(pulseNow) { pulseNow=false; var spot=(FrameworkElement)weekNowTarget??weekNowDot; UI.Attention(spot); SpotlightWeek(canvas,hours,spot); }
      }));
     }
    }
@@ -211,12 +211,31 @@ namespace Dayglance {
    text.Children.Add(new TextBlock { Text=detail,FontSize=11,Foreground=UI.Muted,TextTrimming=TextTrimming.CharacterEllipsis });
    weekNow.Child=panel;
   }
+  // Dims the week grid (and hour gutter) around the pulsing target, fading in and out over the length of the attention pulse.
+  void SpotlightWeek(Canvas canvas,Canvas hours,FrameworkElement target) {
+   if(target==null || double.IsNaN(target.Width) || double.IsNaN(target.Height)) return;
+   const double pad=12; double left=Canvas.GetLeft(target),top=Canvas.GetTop(target); if(double.IsNaN(left)||double.IsNaN(top)) return;
+   var hole=new RectangleGeometry(new Rect(left-pad,top-pad,target.Width+pad*2,target.Height+pad*2),10,10);
+   var veil=new System.Windows.Shapes.Path { Data=new CombinedGeometry(GeometryCombineMode.Exclude,new RectangleGeometry(new Rect(0,0,canvas.Width,canvas.Height)),hole),Fill=Brushes.Black,Opacity=0,IsHitTestVisible=false };
+   var gutterVeil=new Rectangle { Width=hours.Width,Height=hours.Height,Fill=Brushes.Black,Opacity=0,IsHitTestVisible=false };
+   Panel.SetZIndex(veil,10); Panel.SetZIndex(gutterVeil,10); canvas.Children.Add(veil); hours.Children.Add(gutterVeil);
+   foreach(var shade in new FrameworkElement[]{veil,gutterVeil}) {
+    var element=shade; var ease=new System.Windows.Media.Animation.SineEase { EasingMode=System.Windows.Media.Animation.EasingMode.EaseInOut };
+    var fade=new System.Windows.Media.Animation.DoubleAnimationUsingKeyFrames();
+    fade.KeyFrames.Add(new System.Windows.Media.Animation.EasingDoubleKeyFrame(0,System.Windows.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.Zero)));
+    fade.KeyFrames.Add(new System.Windows.Media.Animation.EasingDoubleKeyFrame(.5,System.Windows.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(450)),ease));
+    fade.KeyFrames.Add(new System.Windows.Media.Animation.EasingDoubleKeyFrame(.5,System.Windows.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(2000))));
+    fade.KeyFrames.Add(new System.Windows.Media.Animation.EasingDoubleKeyFrame(0,System.Windows.Media.Animation.KeyTime.FromTimeSpan(TimeSpan.FromMilliseconds(2700)),ease));
+    fade.Completed+=(s,e)=> { var parent=element.Parent as Panel; if(parent!=null) parent.Children.Remove(element); };
+    element.BeginAnimation(UIElement.OpacityProperty,fade);
+   }
+  }
   void FocusWeekNow() {
    if(!State.WeekView) return;
    var now=DateTime.Now; var first=Schedule.WeekStart(selected); if(now.Date<first || now.Date>=first.AddDays(7)) selected=now.Date;
    focusNow=true; pulseNow=true; weekColumn=-1; Refresh(true);
   }
-  // Back/forward history for view and day jumps (week headings, Day/Week switch, Today). Arrow stepping is not recorded.
+  // Back/forward history for view and day jumps (week headings, Day/Week switch, Today), driven by mouse X buttons and Alt+Left/Right. Arrow stepping is not recorded.
   struct NavState { public bool Week; public DateTime Day; }
   readonly System.Collections.Generic.List<NavState> backStack=new System.Collections.Generic.List<NavState>(),forwardStack=new System.Collections.Generic.List<NavState>();
   bool Navigate(bool week,DateTime day) {
@@ -227,11 +246,6 @@ namespace Dayglance {
   void Go(bool week,DateTime day) { selected=day.Date; if(week!=State.WeekView) SetView(week); else Refresh(true); }
   public void GoBack() { if(backStack.Count==0) return; var target=backStack[backStack.Count-1]; backStack.RemoveAt(backStack.Count-1); forwardStack.Add(new NavState { Week=State.WeekView,Day=selected }); Go(target.Week,target.Day); }
   public void GoForward() { if(forwardStack.Count==0) return; var target=forwardStack[forwardStack.Count-1]; forwardStack.RemoveAt(forwardStack.Count-1); backStack.Add(new NavState { Week=State.WeekView,Day=selected }); Go(target.Week,target.Day); }
-  void UpdateHistoryButtons() {
-   if(backButton==null) return;
-   backButton.Visibility=backStack.Count>0||forwardStack.Count>0?Visibility.Visible:Visibility.Collapsed; backButton.IsEnabled=backStack.Count>0; backButton.Opacity=backStack.Count>0?1:.35;
-   forwardButton.Visibility=forwardStack.Count>0?Visibility.Visible:Visibility.Collapsed;
-  }
   void EnableHistoryInput() {
    PreviewMouseDown+=(s,e)=> { if(e.ChangedButton==MouseButton.XButton1) { e.Handled=true; GoBack(); } else if(e.ChangedButton==MouseButton.XButton2) { e.Handled=true; GoForward(); } };
    PreviewKeyDown+=(s,e)=> { if((Keyboard.Modifiers&ModifierKeys.Alt)!=0 && e.Key==Key.System) { if(e.SystemKey==Key.Left) { e.Handled=true; GoBack(); } else if(e.SystemKey==Key.Right) { e.Handled=true; GoForward(); } } };
