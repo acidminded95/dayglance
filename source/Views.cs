@@ -254,7 +254,7 @@ namespace Dayglance {
   // Settings preview their theme and language on the dialog itself; the main widget only changes after saving.
   void Settings() {
    var w=UI.Dialog(this,"Dayglance settings",510,790); w.LightDismiss=true; var p=new StackPanel { Margin=new Thickness(24,24,24,12) }; var scroller=new ScrollViewer { Content=p,VerticalScrollBarVisibility=ScrollBarVisibility.Auto };
-   var shell=new DockPanel(); var footer=new Border { Padding=new Thickness(24,12,24,20),BorderThickness=new Thickness(0,1,0,0) }; DockPanel.SetDock(footer,Dock.Bottom); shell.Children.Add(footer); shell.Children.Add(scroller); w.Content=shell;
+   var settingsShell=new DockPanel(); var footer=new Border { Padding=new Thickness(24,12,24,20),BorderThickness=new Thickness(0,1,0,0) }; DockPanel.SetDock(footer,Dock.Bottom); settingsShell.Children.Add(footer); settingsShell.Children.Add(scroller); w.Content=settingsShell;
    string themeId=State.Theme,language=State.Language,cardStyle=State.CardStyle,weekHighlight=State.WeekHighlight; bool notifications=State.Notifications,sound=State.Sound,startup=File.Exists(StartupPath),saved=false;
    Choice languageChoice=null; Action render=null;
    Action applyPending=()=> {
