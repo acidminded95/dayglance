@@ -96,7 +96,7 @@ namespace Dayglance {
    hero.Children.Add(card);
    if(active.Count>0) {
     var after=today.FirstOrDefault(o=>o.Start>=active[0].End&&!State.Completed.Contains(o.Key));
-    var nextLine=new TextBlock { Text=after==null?UI.T("Nothing else today"):UI.T("Next")+" · "+after.Activity.Title+"  "+after.Start.ToString("HH:mm"),FontSize=11,Foreground=UI.Muted,TextTrimming=TextTrimming.CharacterEllipsis,Margin=new Thickness(4,6,0,0) };
+    var nextLine=new TextBlock { Text=after==null?UI.T("Nothing else today"):UI.T("After")+" · "+after.Activity.Title+"  "+after.Start.ToString("HH:mm"),FontSize=11,Foreground=UI.Muted,TextTrimming=TextTrimming.CharacterEllipsis,Margin=new Thickness(4,6,0,0) };
     hero.Children.Add(nextLine);
    }
   }
