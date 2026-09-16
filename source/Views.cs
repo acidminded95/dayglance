@@ -456,7 +456,6 @@ namespace Dayglance {
     Canvas.SetLeft(card,x+4); Canvas.SetTop(card,y); Panel.SetZIndex(card,5); canvas.Children.Add(card); return card;
    };
    block("","#9CCBFF",0,row*.5,row*1.6); block("","#FFD18F",column*2,row*2.3,row*1.5);
-   string accentHex=Palette.Hex(((SolidColorBrush)UI.Accent).Color);
    var current=block(UI.T("Sample activity"),"#B9AAFF",column,row*1.1,row*2);
    if(mode=="line") { current.BorderBrush=UI.Text; current.BorderThickness=new Thickness(2); }
    else {
@@ -467,8 +466,8 @@ namespace Dayglance {
     }
     Canvas.SetLeft(halo,column+1); Canvas.SetTop(halo,row*1.1-3); Panel.SetZIndex(halo,4); canvas.Children.Add(halo);
    }
-   double y=row*2.4; canvas.Children.Add(new Line { X1=0,X2=width,Y1=y,Y2=y,Stroke=UI.Accent,StrokeThickness=1.5 });
-   var dot=new Ellipse { Width=8,Height=8,Fill=UI.Accent }; Canvas.SetLeft(dot,column-4); Canvas.SetTop(dot,y-4); Panel.SetZIndex(dot,6); canvas.Children.Add(dot);
+   double lineY=row*2.4; canvas.Children.Add(new Line { X1=0,X2=width,Y1=lineY,Y2=lineY,Stroke=UI.Accent,StrokeThickness=1.5 });
+   var dot=new Ellipse { Width=8,Height=8,Fill=UI.Accent }; Canvas.SetLeft(dot,column-4); Canvas.SetTop(dot,lineY-4); Panel.SetZIndex(dot,6); canvas.Children.Add(dot);
    return new Border { Child=canvas,CornerRadius=new CornerRadius(10),BorderBrush=UI.Line,BorderThickness=new Thickness(1),Margin=new Thickness(0,8,0,4),HorizontalAlignment=HorizontalAlignment.Left,ClipToBounds=true };
   }
   bool checkingUpdates; string announcedUpdate;
