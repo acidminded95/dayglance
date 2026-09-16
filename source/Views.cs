@@ -17,21 +17,30 @@ namespace Dayglance {
   bool focusNow,pulseNow; Border weekNowTarget,weekNowCard; Ellipse weekNowDot; // set when compact/expand toggles in week view: scroll the current activity into sight on the next render
   // Day and week share one window size and position; the mini widget keeps its own. Positions are clamped to the virtual screen so multi-monitor placement survives restarts.
   void SetSize() {
-   var area=SystemParameters.WorkArea; double scale=UI.Scale,width,height,left,top;
-   if(State.Compact) {
-    MinWidth=240*scale; MinHeight=150*scale; width=State.MiniWidth; height=State.MiniHeight; if(width<MinWidth) width=300*scale; if(height<MinHeight) height=190*scale;
-    left=State.MiniLeft; top=State.MiniTop; if(State.MiniWidth<1) { left=(double.IsNaN(Left)?State.Left:Left)+(double.IsNaN(Width)?State.WindowWidth:Width)-width; top=double.IsNaN(Top)?State.Top:Top; }
+   // Read the stored geometry and raise the guard BEFORE touching MinWidth/Width: changing them moves/resizes the window,
+   // and the resulting LocationChanged/SizeChanged would otherwise overwrite the size we are about to restore.
+   var area=SystemParameters.WorkArea; double scale=UI.Scale,width,height,left,top,minWidth,minHeight;
+   bool mini=State.Compact;
+   if(mini) {
+    minWidth=240*scale; minHeight=150*scale; width=State.MiniWidth; height=State.MiniHeight; left=State.MiniLeft; top=State.MiniTop;
+    if(width<minWidth) width=300*scale; if(height<minHeight) height=190*scale;
+    if(State.MiniWidth<1) { left=(double.IsNaN(Left)?State.Left:Left)+(double.IsNaN(Width)?State.WindowWidth:Width)-width; top=double.IsNaN(Top)?State.Top:Top; }
    } else {
-    MinWidth=Math.Min(380*scale,area.Width); MinHeight=Math.Min(340*scale,area.Height); width=State.WindowWidth; height=State.WindowHeight; if(width<MinWidth) width=520*scale; if(height<MinHeight) height=820*scale;
-    left=State.Left; top=State.Top;
+    minWidth=Math.Min(380*scale,area.Width); minHeight=Math.Min(340*scale,area.Height); width=State.WindowWidth; height=State.WindowHeight; left=State.Left; top=State.Top;
+    if(width<minWidth) width=520*scale; if(height<minHeight) height=820*scale;
    }
    sizing=true;
    try {
+    MinWidth=0; MinHeight=0;
     Width=Math.Min(width,area.Width); Height=Math.Min(height,area.Height);
+    MinWidth=minWidth; MinHeight=minHeight;
     double vl=SystemParameters.VirtualScreenLeft,vt=SystemParameters.VirtualScreenTop,vr=vl+SystemParameters.VirtualScreenWidth,vb=vt+SystemParameters.VirtualScreenHeight;
     Left=Math.Max(vl,Math.Min(left,vr-Width)); Top=Math.Max(vt,Math.Min(top,vb-Height));
     // The virtual screen can include dead corners between monitors: if the title bar would not land on any monitor, place the window on the primary one.
     if(!OnSomeScreen(Left,Top,Width)) { Left=Math.Max(area.Left,area.Right-Width-24); Top=area.Top+24; }
+    // Store exactly what was applied, so a late layout event can only confirm these values.
+    if(mini) { State.MiniWidth=Width; State.MiniHeight=Height; State.MiniLeft=Left; State.MiniTop=Top; }
+    else { State.WindowWidth=Width; State.WindowHeight=Height; State.Left=Left; State.Top=Top; }
    } finally { sizing=false; }
   }
   static bool OnSomeScreen(double left,double top,double width) {
@@ -241,7 +250,7 @@ namespace Dayglance {
    if(full) { toggle.Background=new SolidColorBrush(Palette.IsDark(hex)?Color.FromArgb(46,255,255,255):Color.FromArgb(30,0,0,0)); toggle.Foreground=ink; }
    Grid.SetColumn(toggle,2); row.Children.Add(toggle);
    var box=UI.Box(row,full?color:current?UI.Hero:UI.Card,new Thickness(0,0,0,8)); if(band) box.Padding=new Thickness(0);
-   box.BorderThickness=new Thickness(current?2:1); box.BorderBrush=current?UI.Accent:full?color:UI.Card; // the running activity is always outlined in the accent color if(full&&done) box.Opacity=.6;
+   box.BorderThickness=new Thickness(current?2:1); box.BorderBrush=current?UI.Accent:full?color:UI.Card; if(full&&done) box.Opacity=.6; // the running activity is always outlined in the accent color
    if(interactive) { box.MouseLeftButtonDown+=(s,e)=> { if(e.ClickCount==2) Edit(o.Activity); }; box.ToolTip=UI.T("Double-click to edit"); }
    return box;
   }

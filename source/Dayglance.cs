@@ -62,7 +62,7 @@ namespace Dayglance {
   // Glow ring drawn in the adorner layer around an element, so the element itself (and its text) is never rendered through a blur effect.
   public static void GlowAround(FrameworkElement element,double cornerRadius) {
    if(element==null) return; var layer=System.Windows.Documents.AdornerLayer.GetAdornerLayer(element); if(layer==null) { Attention(element); return; }
-   var adorner=new GlowAdorner(element,new CornerRadius(cornerRadius+3)); layer.Add(adorner);
+   var adorner=new GlowAdorner(element,new CornerRadius(cornerRadius)); layer.Add(adorner);
    var glow=new System.Windows.Media.Effects.DropShadowEffect { Color=((SolidColorBrush)Accent).Color,ShadowDepth=0,BlurRadius=0,Opacity=1 }; adorner.Ring.Effect=glow;
    var ease=new System.Windows.Media.Animation.SineEase { EasingMode=System.Windows.Media.Animation.EasingMode.EaseInOut };
    var blur=new System.Windows.Media.Animation.DoubleAnimation(0,28,TimeSpan.FromMilliseconds(420)) { AutoReverse=true,RepeatBehavior=new System.Windows.Media.Animation.RepeatBehavior(3),EasingFunction=ease };
@@ -79,11 +79,12 @@ namespace Dayglance {
  public class GlowAdorner : System.Windows.Documents.Adorner {
   readonly Border ring;
   public Border Ring { get { return ring; } }
-  public GlowAdorner(UIElement adorned,CornerRadius radius) : base(adorned) { IsHitTestVisible=false; ring=new Border { BorderBrush=UI.Accent,BorderThickness=new Thickness(2.5),CornerRadius=radius,IsHitTestVisible=false }; AddVisualChild(ring); }
+  public GlowAdorner(UIElement adorned,CornerRadius radius) : base(adorned) { IsHitTestVisible=false; ring=new Border { BorderBrush=UI.Accent,BorderThickness=new Thickness(2),CornerRadius=radius,IsHitTestVisible=false }; AddVisualChild(ring); }
   protected override int VisualChildrenCount { get { return 1; } }
   protected override Visual GetVisualChild(int index) { return ring; }
   protected override Size MeasureOverride(Size constraint) { ring.Measure(constraint); return AdornedElement.RenderSize; }
-  protected override Size ArrangeOverride(Size finalSize) { var size=AdornedElement.RenderSize; ring.Arrange(new Rect(-3,-3,size.Width+6,size.Height+6)); return finalSize; }
+  // The ring sits exactly on the card's own border, so only the glow is added.
+  protected override Size ArrangeOverride(Size finalSize) { var size=AdornedElement.RenderSize; ring.Arrange(new Rect(0,0,size.Width,size.Height)); return finalSize; }
  }
  public partial class MainWindow : Window {
   public State State;
