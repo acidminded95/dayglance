@@ -14,6 +14,7 @@ namespace Dayglance {
   double weekZoom=1,dayZoom=1,weekColumn=-1;
   DateTime weekFirst;
   bool sizing;
+  bool focusNow; // set when compact/expand toggles in week view: scroll the current activity into sight on the next render
   // Day and week share one window size; the week view adapts its column count (and scrolls) instead of resizing the window.
   void SetSize() {
    var area=SystemParameters.WorkArea; MinWidth=380; MinHeight=340;
@@ -105,6 +106,22 @@ namespace Dayglance {
     bodyScroll.ScrollToHorizontalOffset(target); headScroll.ScrollToHorizontalOffset(target);
     // Re-apply once layout has measured the new extent, so the offset is not clamped against the old one.
     Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,new Action(()=> { if(weekScroll!=bodyScroll) return; bodyScroll.ScrollToHorizontalOffset(target); headScroll.ScrollToHorizontalOffset(target); }));
+   }
+   if(focusNow) {
+    if(now.Date<first || now.Date>=first.AddDays(7)) focusNow=false;
+    else {
+     double startHour=now.TimeOfDay.TotalHours,endHour=startHour;
+     var live=Schedule.Layout(State,now.Date).Where(b=>b.Occurrence.Start<=now && b.Occurrence.End>now && !State.Completed.Contains(b.Occurrence.Key)).OrderBy(b=>b.StartHour).FirstOrDefault();
+     if(live!=null) { startHour=live.StartHour; endHour=live.EndHour; }
+     double focusTop=startHour*rowHeight,focusBottom=endHour*rowHeight;
+     // Runs after layout so the viewport height is known; renders replaced before then re-schedule it.
+     Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,new Action(()=> {
+      if(weekScroll!=bodyScroll || !focusNow) return; focusNow=false;
+      double view=bodyScroll.ViewportHeight; if(view<1) return;
+      double wanted=focusBottom-focusTop<=view-24?(focusTop+focusBottom)/2-view/2:focusTop-12;
+      bodyScroll.ScrollToVerticalOffset(Math.Max(0,Math.Min(bodyScroll.ScrollableHeight,wanted)));
+     }));
+    }
    }
    weekColumn=column; weekFirst=first;
    bodyScroll.PreviewMouseWheel+=(s,e)=> {

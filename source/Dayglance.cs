@@ -117,7 +117,7 @@ namespace Dayglance {
   void Restore() { Show(); WindowState=WindowState.Normal; Activate(); }
   void PersistPosition() { State.Left=Left; State.Top=Top; RememberSize(); Save(); }
   bool Save() { try { Storage.Save(State); return true; } catch(Exception ex) { MessageBox.Show(this,UI.T("Your changes could not be saved.")+"\n\n"+UI.T(ex.Message),"Dayglance",MessageBoxButton.OK,MessageBoxImage.Error); return false; } }
-  void ToggleCompact() { State.Compact=!State.Compact; weekZoom=1; dayZoom=1; BuildView(); Save(); }
+  void ToggleCompact() { State.Compact=!State.Compact; weekZoom=1; dayZoom=1; if(State.WeekView) { focusNow=true; weekColumn=-1; } BuildView(); Save(); }
   public void Refresh(bool force) {
    if(settingsOpen && !force) return;
    DateTime now=DateTime.Now; if(selected==lastToday) selected=now.Date; lastToday=now.Date; clockLabel.Text=now.ToString("ddd d MMM  ·  HH:mm",UI.Culture).ToUpperInvariant();
