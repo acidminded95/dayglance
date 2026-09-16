@@ -11,55 +11,89 @@ namespace Dayglance {
  public partial class MainWindow {
   DockPanel weekPanel;
   ScrollViewer weekScroll;
-  double weekZoom=1,dayZoom=1;
+  double weekZoom=1,dayZoom=1,weekColumn=-1;
+  DateTime weekFirst;
+  bool sizing;
+  // Each view remembers its own window size; defaults are used until the user resizes that view.
   void SetSize() {
-   var area=SystemParameters.WorkArea; MinWidth=State.WeekView?Math.Min(820,area.Width):380;
-   Width=Math.Min(State.WeekView?1200:440,area.Width); Height=Math.Min(State.WeekView?950:State.Compact?550:800,area.Height);
+   var area=SystemParameters.WorkArea; MinWidth=380; MinHeight=340;
+   double width=State.WeekView?State.WeekWidth:State.DayWidth,height=State.WeekView?State.WeekHeight:State.DayHeight;
+   if(width<MinWidth) width=State.WeekView?1200:440; if(height<MinHeight) height=State.WeekView?950:800;
+   sizing=true; try { Width=Math.Min(width,area.Width); Height=Math.Min(height,area.Height); } finally { sizing=false; }
    Left=Math.Max(area.Left,Math.Min(Left,area.Right-Width)); Top=Math.Max(area.Top,Math.Min(Top,area.Bottom-Height));
   }
-  public void SetView(bool week) { State.WeekView=week; SetSize(); BuildView(); if(!preview) Save(); }
+  void RememberSize() {
+   if(sizing || WindowState!=WindowState.Normal || ActualWidth<MinWidth-1 || ActualHeight<1) return;
+   if(State.WeekView) { State.WeekWidth=ActualWidth; State.WeekHeight=ActualHeight; } else { State.DayWidth=ActualWidth; State.DayHeight=ActualHeight; }
+  }
+  public void SetView(bool week) { if(State.WeekView==week) return; RememberSize(); State.WeekView=week; SetSize(); BuildView(); if(!preview) Save(); }
   public void ZoomSchedule(int direction,double anchor) {
    if(!State.WeekView) { dayZoom=Math.Max(.8,Math.Min(1.7,dayZoom*(direction>0?1.1:1/1.1))); list.LayoutTransform=new ScaleTransform(dayZoom,dayZoom); return; }
    double before=weekZoom,previous=weekScroll.VerticalOffset; weekZoom=Math.Max(.65,Math.Min(3,weekZoom*(direction>0?1.15:1/1.15))); RenderWeek(); weekScroll.UpdateLayout(); weekScroll.ScrollToVerticalOffset((previous+anchor)*weekZoom/before-anchor);
   }
+  // Week grid: a fixed hour gutter, day headings and a body that shows 3–7 day columns.
+  // With fewer than seven columns the body scrolls horizontally and resizing keeps today centered.
   void RenderWeek() {
    if(weekPanel==null || ActualWidth<1) return;
-   double offset=weekScroll==null?0:weekScroll.VerticalOffset;
+   double offset=weekScroll==null?0:weekScroll.VerticalOffset,hOffset=weekScroll==null?-1:weekScroll.HorizontalOffset;
    weekPanel.Children.Clear(); DateTime first=Schedule.WeekStart(selected),now=DateTime.Now;
-   double available=Math.Max(560,(weekPanel.ActualWidth>100?weekPanel.ActualWidth:ActualWidth-42)-SystemParameters.VerticalScrollBarWidth), gutter=44, column=(available-gutter)/7;
-   double viewport=weekPanel.ActualHeight>100?weekPanel.ActualHeight:ActualHeight-370;
-   double rowHeight=Math.Max(14,(State.Compact?Math.Max(14,(viewport-72)/24):42)*weekZoom);
-   var headings=new Canvas { Height=43,Width=available,HorizontalAlignment=HorizontalAlignment.Left }; DockPanel.SetDock(headings,Dock.Top); weekPanel.Children.Add(headings);
+   const double gutter=44,bar=10,hbar=8,minColumn=110;
+   double total=weekPanel.ActualWidth>100?weekPanel.ActualWidth:ActualWidth-40, body=Math.Max(150,total-gutter-bar);
+   int visible=Math.Max(3,Math.Min(7,(int)Math.Floor(body/minColumn))); double column=body/visible,width=column*7; bool sliding=visible<7;
+   double viewport=(weekPanel.ActualHeight>100?weekPanel.ActualHeight:ActualHeight-300)-(sliding?hbar:0);
+   double rowHeight=Math.Max(14,(State.Compact?Math.Max(14,(viewport-72)/24):42)*weekZoom), canvasHeight=rowHeight*24+28;
+   var headRow=new DockPanel { Height=43 }; DockPanel.SetDock(headRow,Dock.Top); weekPanel.Children.Add(headRow);
+   var corner=new Border { Width=gutter }; DockPanel.SetDock(corner,Dock.Left); headRow.Children.Add(corner);
+   var headings=new Canvas { Height=43,Width=width,HorizontalAlignment=HorizontalAlignment.Left };
+   var headScroll=new ScrollViewer { Content=headings,HorizontalScrollBarVisibility=ScrollBarVisibility.Hidden,VerticalScrollBarVisibility=ScrollBarVisibility.Disabled,Margin=new Thickness(0,0,bar,0) }; headRow.Children.Add(headScroll);
    for(int d=0;d<7;d++) {
     DateTime date=first.AddDays(d); bool today=date==now.Date;
-    var button=UI.Button(date.ToString("ddd  d",UI.Culture),()=> { selected=date; SetView(false); },today); button.Width=column-4; button.Margin=new Thickness(0); button.ToolTip=UI.T("Show this day"); Canvas.SetLeft(button,gutter+d*column); headings.Children.Add(button);
+    var button=UI.Button(date.ToString(column<100?"ddd d":"ddd  d",UI.Culture),()=> { selected=date; SetView(false); },today); button.Width=column-4; button.Margin=new Thickness(0); button.ToolTip=UI.T("Show this day"); Canvas.SetLeft(button,d*column); headings.Children.Add(button);
    }
-   var canvas=new Canvas { Width=available,Height=rowHeight*24+28,Background=UI.Card,ClipToBounds=true };
+   var grid=new Grid(); grid.ColumnDefinitions.Add(new ColumnDefinition { Width=new GridLength(gutter) }); grid.ColumnDefinitions.Add(new ColumnDefinition()); weekPanel.Children.Add(grid);
+   var hours=new Canvas { Width=gutter,Height=canvasHeight+(sliding?hbar:0),Background=UI.Card,ClipToBounds=true };
+   var gutterScroll=new ScrollViewer { Content=hours,VerticalScrollBarVisibility=ScrollBarVisibility.Hidden,HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled }; grid.Children.Add(gutterScroll);
+   var canvas=new Canvas { Width=width,Height=canvasHeight,Background=UI.Card,ClipToBounds=true };
    for(int d=0;d<7;d++) {
-    var date=first.AddDays(d); if(date==now.Date) { var shade=new Rectangle { Width=column,Height=rowHeight*24,Fill=UI.Hero }; Canvas.SetLeft(shade,gutter+d*column); canvas.Children.Add(shade); }
-    var vertical=new Line { X1=gutter+d*column,X2=gutter+d*column,Y1=0,Y2=rowHeight*24,Stroke=UI.Line,StrokeThickness=0.5 }; canvas.Children.Add(vertical);
+    var date=first.AddDays(d); if(date==now.Date) { var shade=new Rectangle { Width=column,Height=rowHeight*24,Fill=UI.Hero }; Canvas.SetLeft(shade,d*column); canvas.Children.Add(shade); }
+    canvas.Children.Add(new Line { X1=d*column,X2=d*column,Y1=0,Y2=rowHeight*24,Stroke=UI.Line,StrokeThickness=0.5 });
    }
    for(int hour=0;hour<=24;hour++) {
-    var label=UI.Label(hour.ToString("00")+":00",10,UI.Muted); label.Margin=new Thickness(0); Canvas.SetTop(label,hour*rowHeight+2); canvas.Children.Add(label);
-    canvas.Children.Add(new Line { X1=gutter,X2=available,Y1=hour*rowHeight,Y2=hour*rowHeight,Stroke=UI.Line,StrokeThickness=0.5 });
+    var label=UI.Label(hour.ToString("00")+":00",10,UI.Muted); label.Margin=new Thickness(0); Canvas.SetTop(label,hour*rowHeight+2); hours.Children.Add(label);
+    canvas.Children.Add(new Line { X1=0,X2=width,Y1=hour*rowHeight,Y2=hour*rowHeight,Stroke=UI.Line,StrokeThickness=0.5 });
    }
    for(int d=0;d<7;d++) foreach(var block in Schedule.Layout(State,first.AddDays(d))) {
     var o=block.Occurrence; bool done=State.Completed.Contains(o.Key),current=o.Start<=now&&o.End>now;
-    double width=(column-4)/block.Lanes, height=Math.Max(5,(block.EndHour-block.StartHour)*rowHeight-2);
+    double laneWidth=(column-4)/block.Lanes, height=Math.Max(5,(block.EndHour-block.StartHour)*rowHeight-2);
     var text=new StackPanel(); var title=UI.Label((done?"✓ ":"")+o.Activity.Title,block.Lanes>1?9:11,UI.Ink(o.Activity.Color)); title.Margin=new Thickness(0); title.FontWeight=FontWeights.SemiBold; title.MaxHeight=height<37?height-2:Math.Max(15,height-20); title.TextTrimming=TextTrimming.CharacterEllipsis; text.Children.Add(title);
     if(height>=39) { var time=UI.Label(o.Start.ToString("HH:mm")+"–"+o.End.ToString("HH:mm"),9,UI.Ink(o.Activity.Color)); time.Margin=new Thickness(0); text.Children.Add(time); }
-    var card=new Border { Child=text,Width=Math.Max(8,width-2),Height=height,Padding=new Thickness(4,height<25?1:3,3,1),Background=UI.B(o.Activity.Color),CornerRadius=new CornerRadius(5),BorderBrush=current?UI.Text:UI.B(o.Activity.Color),BorderThickness=new Thickness(current?2:0),Opacity=done?0.58:0.95,ClipToBounds=true,Cursor=Cursors.Hand };
+    var card=new Border { Child=text,Width=Math.Max(8,laneWidth-2),Height=height,Padding=new Thickness(4,height<25?1:3,3,1),Background=UI.B(o.Activity.Color),CornerRadius=new CornerRadius(5),BorderBrush=current?UI.Text:UI.B(o.Activity.Color),BorderThickness=new Thickness(current?2:0),Opacity=done?0.58:0.95,ClipToBounds=true,Cursor=Cursors.Hand };
     card.ToolTip=o.Activity.Title+"\n"+o.Start.ToString("ddd HH:mm",UI.Culture)+"–"+o.End.ToString("ddd HH:mm",UI.Culture)+(string.IsNullOrWhiteSpace(o.Activity.Notes)?"":"\n"+o.Activity.Notes)+"\n"+UI.T("Edit activity");
-    card.MouseLeftButtonUp+=(s,e)=>Edit(o.Activity); Canvas.SetLeft(card,gutter+d*column+3+block.Lane*width); Canvas.SetTop(card,block.StartHour*rowHeight+1); canvas.Children.Add(card);
+    card.MouseLeftButtonUp+=(s,e)=>Edit(o.Activity); Canvas.SetLeft(card,d*column+3+block.Lane*laneWidth); Canvas.SetTop(card,block.StartHour*rowHeight+1); canvas.Children.Add(card);
    }
    if(now.Date>=first && now.Date<first.AddDays(7)) {
-    double y=now.TimeOfDay.TotalHours*rowHeight, x=gutter+(int)now.DayOfWeek*column;
-    canvas.Children.Add(new Line { X1=gutter,X2=available,Y1=y,Y2=y,Stroke=UI.Accent,StrokeThickness=1.5,IsHitTestVisible=false });
+    double y=now.TimeOfDay.TotalHours*rowHeight, x=(int)now.DayOfWeek*column;
+    canvas.Children.Add(new Line { X1=0,X2=width,Y1=y,Y2=y,Stroke=UI.Accent,StrokeThickness=1.5,IsHitTestVisible=false });
     var dot=new Ellipse { Width=8,Height=8,Fill=UI.Accent,IsHitTestVisible=false }; Canvas.SetLeft(dot,x-4); Canvas.SetTop(dot,y-4); canvas.Children.Add(dot);
-    var tag=new Border { Background=UI.Accent,CornerRadius=new CornerRadius(3),Padding=new Thickness(2),Child=new TextBlock { Text=now.ToString("HH:mm"),FontSize=10,Foreground=UI.AccentInk },IsHitTestVisible=false }; Canvas.SetTop(tag,y-9); canvas.Children.Add(tag);
+    var tag=new Border { Background=UI.Accent,CornerRadius=new CornerRadius(3),Padding=new Thickness(2),Child=new TextBlock { Text=now.ToString("HH:mm"),FontSize=10,Foreground=UI.AccentInk },IsHitTestVisible=false }; Canvas.SetTop(tag,y-9); hours.Children.Add(tag);
    }
-   weekScroll=new ScrollViewer { Content=canvas,VerticalScrollBarVisibility=ScrollBarVisibility.Auto,HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled }; weekPanel.Children.Add(weekScroll); weekScroll.ScrollToVerticalOffset(offset);
-   weekScroll.PreviewMouseWheel+=(s,e)=> { if((Keyboard.Modifiers&ModifierKeys.Control)==0) return; e.Handled=true; ZoomSchedule(e.Delta,e.GetPosition(weekScroll).Y); };
+   weekScroll=new ScrollViewer { Content=canvas,VerticalScrollBarVisibility=ScrollBarVisibility.Auto,HorizontalScrollBarVisibility=sliding?ScrollBarVisibility.Auto:ScrollBarVisibility.Disabled }; Grid.SetColumn(weekScroll,1); grid.Children.Add(weekScroll);
+   var bodyScroll=weekScroll;
+   bodyScroll.ScrollChanged+=(s,e)=> { gutterScroll.ScrollToVerticalOffset(e.VerticalOffset); headScroll.ScrollToHorizontalOffset(e.HorizontalOffset); };
+   bodyScroll.ScrollToVerticalOffset(offset);
+   if(sliding) {
+    bool recenter=hOffset<0 || Math.Abs(column-weekColumn)>.5 || first!=weekFirst;
+    int focus=now.Date>=first&&now.Date<first.AddDays(7)?(int)now.DayOfWeek:(int)selected.DayOfWeek;
+    double target=Math.Max(0,Math.Min(width-visible*column,recenter?(focus+.5)*column-visible*column/2:hOffset));
+    bodyScroll.ScrollToHorizontalOffset(target); headScroll.ScrollToHorizontalOffset(target);
+   }
+   weekColumn=column; weekFirst=first;
+   bodyScroll.PreviewMouseWheel+=(s,e)=> {
+    if((Keyboard.Modifiers&ModifierKeys.Control)!=0) { e.Handled=true; ZoomSchedule(e.Delta,e.GetPosition(bodyScroll).Y); }
+    else if(sliding && (Keyboard.Modifiers&ModifierKeys.Shift)!=0) { e.Handled=true; bodyScroll.ScrollToHorizontalOffset(bodyScroll.HorizontalOffset-e.Delta*.6); }
+   };
+   gutterScroll.PreviewMouseWheel+=(s,e)=> { e.Handled=true; bodyScroll.ScrollToVerticalOffset(bodyScroll.VerticalOffset-e.Delta*.4); };
+   headScroll.PreviewMouseWheel+=(s,e)=> { e.Handled=true; if(sliding) bodyScroll.ScrollToHorizontalOffset(bodyScroll.HorizontalOffset-e.Delta*.6); };
   }
   void UpdateTrayLanguage() {
    if(tray==null) return;

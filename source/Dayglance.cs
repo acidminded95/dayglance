@@ -52,7 +52,7 @@ namespace Dayglance {
     Closing+=(s,e)=> { if(!exiting) { e.Cancel=true; Hide(); } PersistPosition(); }; Closed+=(s,e)=> { timer.Stop(); tray.Dispose(); };
     timer=new DispatcherTimer { Interval=TimeSpan.FromSeconds(10) }; timer.Tick+=(s,e)=> { Refresh(false); Notify(); }; timer.Start();
    }
-   SetSize(); Refresh(true); UpdateTrayLanguage(); SizeChanged+=(s,e)=> { if(State.WeekView && weekPanel!=null) RenderWeek(); };
+   SetSize(); Refresh(true); UpdateTrayLanguage(); SizeChanged+=(s,e)=> { RememberSize(); if(State.WeekView && weekPanel!=null) RenderWeek(); };
   }
   void BuildView() {
    UI.Apply(State); Background=UI.Bg; Foreground=UI.Text;
@@ -75,9 +75,9 @@ namespace Dayglance {
    Refresh(true);
   }
   void Restore() { Show(); WindowState=WindowState.Normal; Activate(); }
-  void PersistPosition() { State.Left=Left; State.Top=Top; Save(); }
+  void PersistPosition() { State.Left=Left; State.Top=Top; RememberSize(); Save(); }
   bool Save() { try { Storage.Save(State); return true; } catch(Exception ex) { MessageBox.Show(this,UI.T("Your changes could not be saved.")+"\n\n"+UI.T(ex.Message),"Dayglance",MessageBoxButton.OK,MessageBoxImage.Error); return false; } }
-  void ToggleCompact() { State.Compact=!State.Compact; weekZoom=1; dayZoom=1; SetSize(); BuildView(); Save(); }
+  void ToggleCompact() { State.Compact=!State.Compact; weekZoom=1; dayZoom=1; BuildView(); Save(); }
   public void Refresh(bool force) {
    if(settingsOpen && !force) return;
    DateTime now=DateTime.Now; if(selected==lastToday) selected=now.Date; lastToday=now.Date; clockLabel.Text=now.ToString("dddd, d MMMM  ·  HH:mm",UI.Culture).ToUpperInvariant();
