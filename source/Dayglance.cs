@@ -79,6 +79,7 @@ namespace Dayglance {
   bool Save() { try { Storage.Save(State); return true; } catch(Exception ex) { MessageBox.Show(this,UI.T("Your changes could not be saved.")+"\n\n"+UI.T(ex.Message),"Dayglance",MessageBoxButton.OK,MessageBoxImage.Error); return false; } }
   void ToggleCompact() { State.Compact=!State.Compact; weekZoom=1; dayZoom=1; SetSize(); BuildView(); Save(); }
   public void Refresh(bool force) {
+   if(settingsOpen && !force) return;
    DateTime now=DateTime.Now; if(selected==lastToday) selected=now.Date; lastToday=now.Date; clockLabel.Text=now.ToString("dddd, d MMMM  ·  HH:mm",UI.Culture).ToUpperInvariant();
    var today=Schedule.ForDay(State,now.Date); var active=today.Where(o=>o.Start<=now && o.End>now && !State.Completed.Contains(o.Key)).ToList();
    var entries=Schedule.ForDay(State,selected); var sig=selected.ToString("O")+now.ToString("yyyyMMddHHmm")+State.Completed.Count+State.Activities.Count;

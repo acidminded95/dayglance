@@ -35,7 +35,12 @@ namespace Dayglance {
   public List<Theme> CustomThemes { get; set; }
   public double Left { get; set; }
   public double Top { get; set; }
-  public State() { Version=1; Activities=new List<Activity>(); Completed=new List<string>(); Reminded=new List<string>(); CustomThemes=new List<Theme>(); Notifications=true; Pinned=true; Left=80; Top=80; Theme="midnight"; Language="en"; }
+  public string CardStyle { get; set; }
+  public double DayWidth { get; set; }
+  public double DayHeight { get; set; }
+  public double WeekWidth { get; set; }
+  public double WeekHeight { get; set; }
+  public State() { Version=1; Activities=new List<Activity>(); Completed=new List<string>(); Reminded=new List<string>(); CustomThemes=new List<Theme>(); Notifications=true; Pinned=true; Left=80; Top=80; Theme="midnight"; Language="en"; CardStyle="stripe"; }
  }
  public class Occurrence {
   public Activity Activity;
@@ -86,6 +91,8 @@ namespace Dayglance {
    if(s.Language!="es") s.Language="en";
    if(double.IsNaN(s.Left)||double.IsInfinity(s.Left)) s.Left=80;
    if(double.IsNaN(s.Top)||double.IsInfinity(s.Top)) s.Top=80;
+   if(s.CardStyle!="band" && s.CardStyle!="full") s.CardStyle="stripe";
+   foreach(var size in new[]{s.DayWidth,s.DayHeight,s.WeekWidth,s.WeekHeight}) if(double.IsNaN(size)||double.IsInfinity(size)||size<0||size>20000) { s.DayWidth=s.DayHeight=s.WeekWidth=s.WeekHeight=0; break; }
   }
   public class ReminderEvent { public Occurrence Occurrence; public string Key; public bool Advance; }
   public static List<ReminderEvent> Reminders(State state,DateTime now) {

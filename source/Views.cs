@@ -66,52 +66,88 @@ namespace Dayglance {
    var oldIcon=tray.Icon; tray.Icon=BrandIcon.Make(); if(oldIcon!=null) oldIcon.Dispose();
    tray.ContextMenuStrip.Items[0].Text=UI.T("Open Dayglance"); tray.ContextMenuStrip.Items[1].Text=UI.T("Add activity"); tray.ContextMenuStrip.Items[2].Text=UI.T("Quit");
   }
+  bool settingsOpen;
+  // Settings preview their theme and language on the dialog itself; the main widget only changes after saving.
   void Settings() {
-   var w=UI.Dialog(this,"Dayglance settings",510,790); var p=new StackPanel { Margin=new Thickness(24) }; w.Content=new ScrollViewer { Content=p,VerticalScrollBarVisibility=ScrollBarVisibility.Auto };
-   p.Children.Add(UI.Label("Set your own pace.",25,UI.Text)); p.Children.Add(UI.Label("APPEARANCE",11,UI.Muted));
-   string themeId=State.Theme; var themeGrid=new UniformGrid { Columns=2,Margin=new Thickness(0,2,0,14) }; var choices=new System.Collections.Generic.List<Border>();
-   Action drawThemes=()=> { themeGrid.Children.Clear(); choices.Clear(); foreach(var theme in UI.AvailableThemes(State)) {
-    var info=new StackPanel(); var name=UI.Label(theme.Name,13,UI.B(theme.Foreground)); name.Margin=new Thickness(0,0,0,9); info.Children.Add(name);
-    var swatches=UI.Row(); foreach(string hex in new[]{theme.Background,theme.Hero,theme.Accent,theme.Foreground}) swatches.Children.Add(new Border { Background=UI.B(hex),Width=24,Height=13,CornerRadius=new CornerRadius(4),Margin=new Thickness(0,0,5,0) }); info.Children.Add(swatches);
-    var tile=new Border { Child=info,Background=UI.B(theme.Surface),Padding=new Thickness(10),Margin=new Thickness(0,0,8,8),CornerRadius=new CornerRadius(10),BorderBrush=theme.Id==themeId?UI.Accent:UI.Line,BorderThickness=new Thickness(theme.Id==themeId?3:1) };
-    var button=new Button { Content=tile,Background=Brushes.Transparent,BorderThickness=new Thickness(0),Padding=new Thickness(0),HorizontalContentAlignment=HorizontalAlignment.Stretch,Cursor=Cursors.Hand,ToolTip=UI.T(theme.Name) };
-    var template=new ControlTemplate(typeof(Button)); var content=new FrameworkElementFactory(typeof(ContentPresenter)); template.VisualTree=content; button.Template=template;
-    button.Click+=(s,e)=> { themeId=theme.Id; foreach(var b in choices) { b.BorderBrush=UI.Line; b.BorderThickness=new Thickness(1); } tile.BorderBrush=UI.Accent; tile.BorderThickness=new Thickness(3); }; choices.Add(tile); themeGrid.Children.Add(button);
-   } }; drawThemes();
-   p.Children.Add(themeGrid); p.Children.Add(UI.Button("Create theme…",()=>CreateTheme(w,theme=> { State.CustomThemes.Add(theme); if(!Save()) { State.CustomThemes.Remove(theme); return; } themeId=theme.Id; drawThemes(); })));
-   var languageTitle=UI.Label("LANGUAGE",11,UI.Muted); languageTitle.Margin=new Thickness(0,15,0,6); p.Children.Add(languageTitle); var language=new Choice(); language.Items.Add("English"); language.Items.Add("Español"); language.SelectedIndex=State.Language=="es"?1:0; p.Children.Add(language);
-   p.Children.Add(UI.Label("REMINDERS & STARTUP",11,UI.Muted)); var notifications=UI.Switch("Enable activity reminders",State.Notifications); var sound=UI.Switch("Play a sound with reminders",State.Sound); var startup=UI.Switch("Start when I sign in to Windows",File.Exists(StartupPath)); p.Children.Add(notifications); p.Children.Add(sound); p.Children.Add(startup);
-   p.Children.Add(UI.Label(UI.Language=="es"?"Los avisos propios de Dayglance usan tu tema y un sonido suave. Funcionan mientras la app esté abierta; se cierran tras 18 segundos. × oculta el widget en la bandeja.":"Dayglance reminders use your theme and a soft chime. They work while the app is running and dismiss after 18 seconds. × hides the widget in the tray.",12,UI.Muted));
-   p.Children.Add(UI.Button("Test reminder",()=>new ReminderToast(UI.T("Notification preview"),UI.T("Your reminder will look like this."),Restore,sound.IsChecked==true)));
-   p.Children.Add(UI.Button("Save preferences",()=> {
-    try {
-     if(!preview) {
-      if(startup.IsChecked==true) { Type t=Type.GetTypeFromProgID("WScript.Shell"); dynamic shell=Activator.CreateInstance(t); dynamic shortcut=shell.CreateShortcut(StartupPath); shortcut.TargetPath=System.Reflection.Assembly.GetExecutingAssembly().Location; shortcut.WorkingDirectory=AppDomain.CurrentDomain.BaseDirectory; shortcut.Description="Dayglance"; shortcut.Save(); System.Runtime.InteropServices.Marshal.FinalReleaseComObject(shortcut); System.Runtime.InteropServices.Marshal.FinalReleaseComObject(shell); }
-      else if(File.Exists(StartupPath)) File.Delete(StartupPath);
-     }
-     string oldTheme=State.Theme,oldLanguage=State.Language; bool oldNotifications=State.Notifications,oldSound=State.Sound;
-     State.Notifications=notifications.IsChecked==true; State.Sound=sound.IsChecked==true; State.Theme=themeId; State.Language=language.SelectedIndex==1?"es":"en";
-     if(Save()) { w.Close(); BuildView(); UpdateTrayLanguage(); } else { State.Theme=oldTheme; State.Language=oldLanguage; State.Notifications=oldNotifications; State.Sound=oldSound; }
-    } catch(Exception ex) { MessageBox.Show(w,UI.T(ex.Message),UI.T("Could not save preferences")); }
-   },true));
-   var backup=UI.Label("BACKUP & SHARING",11,UI.Accent); backup.Margin=new Thickness(0,20,0,8); p.Children.Add(backup);
-   p.Children.Add(UI.Label("Export your schedule and completion history. Import replaces the current schedule; a backup is saved first.",12,UI.Muted));
-   var row=UI.Row(); row.Children.Add(UI.Button("Export…",()=> { var d=new Microsoft.Win32.SaveFileDialog { Filter="Dayglance JSON (*.json)|*.json",FileName="Dayglance-backup.json" }; if(d.ShowDialog(w)==true) try { File.WriteAllText(d.FileName,Storage.Serializer().Serialize(State)); } catch(Exception ex) { MessageBox.Show(w,UI.T(ex.Message)); } }));
-   row.Children.Add(UI.Button("Import…",()=> {
-    var d=new Microsoft.Win32.OpenFileDialog { Filter="Dayglance JSON (*.json)|*.json" }; if(d.ShowDialog(w)!=true) return;
-    try {
-     var incoming=Storage.Read(d.FileName);
-     string question=UI.Language=="es"?"¿Reemplazar tu horario con "+incoming.Activities.Count+" actividades? Se guardará un respaldo.":"Replace your schedule with "+incoming.Activities.Count+" imported activities? A backup will be saved.";
-     if(MessageBox.Show(w,question,UI.T("Import schedule"),MessageBoxButton.YesNo)!=MessageBoxResult.Yes) return;
-     ImportState(incoming); w.Close(); BuildView();
-    } catch(Exception ex) { MessageBox.Show(w,UI.T(ex.Message),UI.T("Import failed")); }
-   })); p.Children.Add(row);
-   var local=UI.Label("STAYS ON THIS PC",11,UI.Accent); local.Margin=new Thickness(0,20,0,8); p.Children.Add(local); p.Children.Add(UI.Label(Storage.FilePath+"\n"+UI.T("No account, subscriptions, analytics, or network access. Share the app ZIP with friends; your data stays here."),12,UI.Muted)); p.Children.Add(UI.Button("Close",()=>w.Close())); w.ShowDialog();
+   var w=UI.Dialog(this,"Dayglance settings",510,790); var p=new StackPanel { Margin=new Thickness(24) }; var scroller=new ScrollViewer { Content=p,VerticalScrollBarVisibility=ScrollBarVisibility.Auto }; w.Content=scroller;
+   string themeId=State.Theme,language=State.Language; bool notifications=State.Notifications,sound=State.Sound,startup=File.Exists(StartupPath),saved=false;
+   Choice languageChoice=null; Action render=null;
+   Action applyPending=()=> {
+    double y=scroller.VerticalOffset; UI.Apply(new State { Theme=themeId,Language=language,CustomThemes=State.CustomThemes });
+    w.Title=UI.T("Dayglance settings"); w.Restyle(); render(); scroller.UpdateLayout(); scroller.ScrollToVerticalOffset(y);
+   };
+   render=()=> {
+    p.Children.Clear();
+    p.Children.Add(UI.Label("Set your own pace.",25,UI.Text)); p.Children.Add(UI.Label("APPEARANCE",11,UI.Muted));
+    var themeGrid=new UniformGrid { Columns=2,Margin=new Thickness(0,2,0,8) };
+    foreach(var theme in UI.AvailableThemes(State)) {
+     var info=new StackPanel(); var name=UI.Label(theme.Name,13,UI.B(theme.Foreground)); name.Margin=new Thickness(0,0,0,9); info.Children.Add(name);
+     var swatches=UI.Row(); foreach(string hex in new[]{theme.Background,theme.Surface,theme.Foreground,theme.Accent}) swatches.Children.Add(new Border { Background=UI.B(hex),Width=24,Height=13,CornerRadius=new CornerRadius(4),Margin=new Thickness(0,0,5,0),BorderBrush=UI.B(theme.Line),BorderThickness=new Thickness(1) }); info.Children.Add(swatches);
+     bool chosen=theme.Id==themeId;
+     var tile=new Border { Child=info,Background=UI.B(theme.Surface),Padding=new Thickness(10),Margin=new Thickness(0,0,8,8),CornerRadius=new CornerRadius(10),BorderBrush=chosen?UI.Accent:UI.Line,BorderThickness=new Thickness(chosen?3:1) };
+     var button=new Button { Content=tile,Background=Brushes.Transparent,BorderThickness=new Thickness(0),Padding=new Thickness(0),HorizontalContentAlignment=HorizontalAlignment.Stretch,Cursor=Cursors.Hand,ToolTip=UI.T(theme.Name) };
+     var template=new ControlTemplate(typeof(Button)); template.VisualTree=new FrameworkElementFactory(typeof(ContentPresenter)); button.Template=template;
+     string id=theme.Id; button.Click+=(s,e)=> { themeId=id; applyPending(); }; themeGrid.Children.Add(button);
+    }
+    p.Children.Add(themeGrid);
+    var themeActions=new WrapPanel(); themeActions.Children.Add(UI.Button("Create theme…",()=>CreateTheme(w,null,theme=> { State.CustomThemes.Add(theme); if(!Save()) { State.CustomThemes.Remove(theme); return; } themeId=theme.Id; applyPending(); })));
+    var custom=State.CustomThemes.FirstOrDefault(t=>t.Id==themeId);
+    if(custom!=null) {
+     themeActions.Children.Add(UI.Button("Edit theme…",()=>CreateTheme(w,custom,updated=> { int index=State.CustomThemes.IndexOf(custom); if(index<0) return; State.CustomThemes[index]=updated; if(!Save()) { State.CustomThemes[index]=custom; return; } applyPending(); })));
+     themeActions.Children.Add(UI.Button("Delete theme",()=> {
+      if(MessageBox.Show(w,UI.T("Delete this theme?")+"\n\n"+custom.Name,UI.T("Delete theme"),MessageBoxButton.YesNo,MessageBoxImage.Question)!=MessageBoxResult.Yes) return;
+      int index=State.CustomThemes.IndexOf(custom); string oldTheme=State.Theme; State.CustomThemes.Remove(custom); if(State.Theme==custom.Id) State.Theme="midnight";
+      if(!Save()) { State.CustomThemes.Insert(Math.Max(0,index),custom); State.Theme=oldTheme; return; }
+      themeId=State.Theme==custom.Id||themeId==custom.Id?"midnight":themeId; applyPending();
+     }));
+    }
+    foreach(UIElement child in themeActions.Children) ((FrameworkElement)child).Margin=new Thickness(0,0,6,6);
+    p.Children.Add(themeActions);
+    var languageTitle=UI.Label("LANGUAGE",11,UI.Muted); languageTitle.Margin=new Thickness(0,15,0,6); p.Children.Add(languageTitle);
+    languageChoice=new Choice(); languageChoice.Items.Add("English"); languageChoice.Items.Add("Español"); languageChoice.SelectedIndex=language=="es"?1:0; languageChoice.Changed+=()=> { language=languageChoice.SelectedIndex==1?"es":"en"; applyPending(); }; p.Children.Add(languageChoice);
+    p.Children.Add(UI.Label("REMINDERS & STARTUP",11,UI.Muted));
+    var notificationSwitch=UI.Switch("Enable activity reminders",notifications); notificationSwitch.Checked+=(s,e)=>notifications=true; notificationSwitch.Unchecked+=(s,e)=>notifications=false;
+    var soundSwitch=UI.Switch("Play a sound with reminders",sound); soundSwitch.Checked+=(s,e)=>sound=true; soundSwitch.Unchecked+=(s,e)=>sound=false;
+    var startupSwitch=UI.Switch("Start when I sign in to Windows",startup); startupSwitch.Checked+=(s,e)=>startup=true; startupSwitch.Unchecked+=(s,e)=>startup=false;
+    p.Children.Add(notificationSwitch); p.Children.Add(soundSwitch); p.Children.Add(startupSwitch);
+    p.Children.Add(UI.Label(UI.Language=="es"?"Los avisos propios de Dayglance usan tu tema y un sonido suave. Funcionan mientras la app esté abierta; se cierran tras 18 segundos. × oculta el widget en la bandeja.":"Dayglance reminders use your theme and a soft chime. They work while the app is running and dismiss after 18 seconds. × hides the widget in the tray.",12,UI.Muted));
+    p.Children.Add(UI.Label(UI.Language=="es"?"Los cambios se muestran en esta ventana y se aplican al widget al guardar.":"Changes preview in this window and apply to the widget when you save.",12,UI.Accent));
+    var actions=new WrapPanel(); actions.Children.Add(UI.Button("Test reminder",()=>new ReminderToast(UI.T("Notification preview"),UI.T("Your reminder will look like this."),Restore,sound)));
+    actions.Children.Add(UI.Button("Save preferences",()=> {
+     try {
+      if(!preview) {
+       if(startup) { Type t=Type.GetTypeFromProgID("WScript.Shell"); dynamic shell=Activator.CreateInstance(t); dynamic shortcut=shell.CreateShortcut(StartupPath); shortcut.TargetPath=System.Reflection.Assembly.GetExecutingAssembly().Location; shortcut.WorkingDirectory=AppDomain.CurrentDomain.BaseDirectory; shortcut.Description="Dayglance"; shortcut.Save(); System.Runtime.InteropServices.Marshal.FinalReleaseComObject(shortcut); System.Runtime.InteropServices.Marshal.FinalReleaseComObject(shell); }
+       else if(File.Exists(StartupPath)) File.Delete(StartupPath);
+      }
+      string oldTheme=State.Theme,oldLanguage=State.Language; bool oldNotifications=State.Notifications,oldSound=State.Sound;
+      State.Notifications=notifications; State.Sound=sound; State.Theme=themeId; State.Language=languageChoice.SelectedIndex==1?"es":"en";
+      if(Save()) { saved=true; w.Close(); } else { State.Theme=oldTheme; State.Language=oldLanguage; State.Notifications=oldNotifications; State.Sound=oldSound; }
+     } catch(Exception ex) { MessageBox.Show(w,UI.T(ex.Message),UI.T("Could not save preferences")); }
+    },true));
+    foreach(UIElement child in actions.Children) ((FrameworkElement)child).Margin=new Thickness(0,0,6,6);
+    p.Children.Add(actions);
+    var backup=UI.Label("BACKUP & SHARING",11,UI.Accent); backup.Margin=new Thickness(0,20,0,8); p.Children.Add(backup);
+    p.Children.Add(UI.Label("Export your schedule and completion history. Import replaces the current schedule; a backup is saved first.",12,UI.Muted));
+    var row=UI.Row(); row.Children.Add(UI.Button("Export…",()=> { var d=new Microsoft.Win32.SaveFileDialog { Filter="Dayglance JSON (*.json)|*.json",FileName="Dayglance-backup.json" }; if(d.ShowDialog(w)==true) try { File.WriteAllText(d.FileName,Storage.Serializer().Serialize(State)); } catch(Exception ex) { MessageBox.Show(w,UI.T(ex.Message)); } }));
+    row.Children.Add(UI.Button("Import…",()=> {
+     var d=new Microsoft.Win32.OpenFileDialog { Filter="Dayglance JSON (*.json)|*.json" }; if(d.ShowDialog(w)!=true) return;
+     try {
+      var incoming=Storage.Read(d.FileName);
+      string question=UI.Language=="es"?"¿Reemplazar tu horario con "+incoming.Activities.Count+" actividades? Se guardará un respaldo.":"Replace your schedule with "+incoming.Activities.Count+" imported activities? A backup will be saved.";
+      if(MessageBox.Show(w,question,UI.T("Import schedule"),MessageBoxButton.YesNo)!=MessageBoxResult.Yes) return;
+      ImportState(incoming); saved=true; w.Close();
+     } catch(Exception ex) { MessageBox.Show(w,UI.T(ex.Message),UI.T("Import failed")); }
+    })); p.Children.Add(row);
+    var local=UI.Label("STAYS ON THIS PC",11,UI.Accent); local.Margin=new Thickness(0,20,0,8); p.Children.Add(local); p.Children.Add(UI.Label(Storage.FilePath+"\n"+UI.T("No account, subscriptions, analytics, or network access. Share the app ZIP with friends; your data stays here."),12,UI.Muted)); p.Children.Add(UI.Button("Close",()=>w.Close()));
+   };
+   render();
+   w.Closed+=(s,e)=> { settingsOpen=false; UI.Apply(State); if(saved) { BuildView(); UpdateTrayLanguage(); } };
+   settingsOpen=true; w.ShowDialog();
   }
   public void ImportState(State incoming) {
    Schedule.Validate(incoming); Directory.CreateDirectory(Storage.Folder);
    File.WriteAllText(System.IO.Path.Combine(Storage.Folder,"before-import-"+DateTime.Now.ToString("yyyyMMdd-HHmmssfff")+".json"),Storage.Serializer().Serialize(State));
-   incoming.Pinned=State.Pinned; incoming.Compact=State.Compact; incoming.Left=State.Left; incoming.Top=State.Top; incoming.Notifications=State.Notifications; incoming.Sound=State.Sound; incoming.Theme=State.Theme; incoming.Language=State.Language; incoming.WeekView=State.WeekView; incoming.CustomThemes=State.CustomThemes.Concat(incoming.CustomThemes).GroupBy(t=>t.Id).Select(g=>g.First()).ToList();
+   incoming.Pinned=State.Pinned; incoming.Compact=State.Compact; incoming.Left=State.Left; incoming.Top=State.Top; incoming.Notifications=State.Notifications; incoming.Sound=State.Sound; incoming.Theme=State.Theme; incoming.Language=State.Language; incoming.WeekView=State.WeekView; incoming.CardStyle=State.CardStyle; incoming.DayWidth=State.DayWidth; incoming.DayHeight=State.DayHeight; incoming.WeekWidth=State.WeekWidth; incoming.WeekHeight=State.WeekHeight; incoming.CustomThemes=State.CustomThemes.Concat(incoming.CustomThemes).GroupBy(t=>t.Id).Select(g=>g.First()).ToList();
    var previous=State; State=incoming; try { Storage.Save(State); } catch { State=previous; throw; }
   }
  }

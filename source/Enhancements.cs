@@ -12,14 +12,20 @@ using System.Windows.Threading;
 
 namespace Dayglance {
  public class DialogWindow : Window {
-  Border body;
+  readonly Border body=new Border();
+  DockPanel layout;
   public new object Content { get { return body.Child; } set { body.Child=(UIElement)value; } }
   public DialogWindow() {
-   WindowStyle=WindowStyle.None; AllowsTransparency=true; Background=UI.Bg;
-   var layout=new DockPanel(); var head=new Grid { Margin=new Thickness(18,12,12,4),Background=Brushes.Transparent }; head.ColumnDefinitions.Add(new ColumnDefinition()); head.ColumnDefinitions.Add(new ColumnDefinition { Width=GridLength.Auto });
+   WindowStyle=WindowStyle.None; AllowsTransparency=true; KeyDown+=(s,e)=> { if(e.Key==Key.Escape) Close(); };
+   Restyle();
+  }
+  // Rebuilds the themed frame around the current body using the currently applied UI colors.
+  public void Restyle() {
+   Background=UI.Bg; Foreground=UI.Text; if(layout!=null) layout.Children.Remove(body);
+   layout=new DockPanel(); var head=new Grid { Margin=new Thickness(18,12,12,4),Background=Brushes.Transparent }; head.ColumnDefinitions.Add(new ColumnDefinition()); head.ColumnDefinitions.Add(new ColumnDefinition { Width=GridLength.Auto });
    var title=UI.Label("",12,UI.Muted); title.SetBinding(TextBlock.TextProperty,new System.Windows.Data.Binding("Title") { Source=this }); title.VerticalAlignment=VerticalAlignment.Center; head.Children.Add(title);
-   head.MouseLeftButtonDown+=(s,e)=> { if(e.LeftButton==MouseButtonState.Pressed) DragMove(); }; var close=UI.Button("×",()=>Close()); close.ToolTip=UI.T("Close"); Grid.SetColumn(close,1); head.Children.Add(close); DockPanel.SetDock(head,Dock.Top); layout.Children.Add(head); body=new Border(); layout.Children.Add(body);
-   base.Content=new Border { Child=layout,BorderBrush=UI.Line,BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(12),Background=UI.Bg }; KeyDown+=(s,e)=> { if(e.Key==Key.Escape) Close(); };
+   head.MouseLeftButtonDown+=(s,e)=> { if(e.LeftButton==MouseButtonState.Pressed) DragMove(); }; var close=UI.Button("×",()=>Close()); close.ToolTip=UI.T("Close"); Grid.SetColumn(close,1); head.Children.Add(close); DockPanel.SetDock(head,Dock.Top); layout.Children.Add(head); layout.Children.Add(body);
+   base.Content=new Border { Child=layout,BorderBrush=UI.Line,BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(12),Background=UI.Bg };
   }
  }
  public class TimeField : StackPanel {
