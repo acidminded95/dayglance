@@ -96,20 +96,15 @@ namespace Dayglance {
     Occurrence next=null; for(int i=0;i<8 && next==null;i++) next=Schedule.ForDay(State,now.Date.AddDays(i)).FirstOrDefault(o=>o.Start>now&&!State.Completed.Contains(o.Key));
     hp.Children.Add(UI.Label(next==null?"Add an activity to give your day a little structure.":UI.T("Next: ")+next.Activity.Title+" · "+(next.Start.Date==now.Date?"":next.Start.ToString("ddd ",UI.Culture))+next.Start.ToString("HH:mm"),12,UI.Muted));
    }
-   hero.Children.Add(UI.Box(hp,UI.Hero,new Thickness(0,12,0,0)));
+   var heroBox=UI.Box(hp,UI.Hero,new Thickness(0,12,0,0)); hero.Children.Add(heroBox);
+   var focusTarget=active.Count>0?active[0]:today.FirstOrDefault(o=>o.Start>now&&!State.Completed.Contains(o.Key));
+   if(focusTarget!=null) { string focusKey=focusTarget.Key; heroBox.Cursor=Cursors.Hand; heroBox.ToolTip=UI.T("Show in schedule"); heroBox.MouseLeftButtonUp+=(s,e)=>FocusActivity(focusKey); }
    summary.Text=UI.T("SCHEDULE")+"  /  "+entries.Count+" "+UI.T("ACTIVITIES")+"  ·  "+entries.Count(o=>State.Completed.Contains(o.Key))+" "+UI.T("DONE");
    if(State.WeekView) { summary.Text=UI.T("Click an activity to edit. Scroll for more hours."); RenderWeek(); return; }
    var offset=scroll.VerticalOffset; list.Children.Clear();
    if(entries.Count==0) { var empty=new StackPanel { Margin=new Thickness(8,15,8,0) }; empty.Children.Add(UI.Label("A fresh page.",20,UI.Text)); empty.Children.Add(UI.Label("Use + Activity to add something, or Manage to edit your weekly routine.",13,UI.Muted)); list.Children.Add(empty); }
-   foreach(var o in entries) {
-    bool done=State.Completed.Contains(o.Key), current=o.Start<=now&&o.End>now; var row=new Grid(); row.ColumnDefinitions.Add(new ColumnDefinition { Width=new GridLength(6) }); row.ColumnDefinitions.Add(new ColumnDefinition()); row.ColumnDefinitions.Add(new ColumnDefinition { Width=GridLength.Auto });
-    var stripe=new Border { Background=UI.B(o.Activity.Color),CornerRadius=new CornerRadius(3),Width=3 }; row.Children.Add(stripe);
-    var info=new StackPanel { Margin=new Thickness(10,0,8,0) }; var name=UI.Label(o.Activity.Title,15,done?UI.Muted:UI.Text); name.FontWeight=FontWeights.SemiBold; if(done) name.TextDecorations=TextDecorations.Strikethrough; info.Children.Add(name);
-    info.Children.Add(UI.Label(o.Start.ToString("HH:mm")+" – "+o.End.ToString("HH:mm")+(o.End.Date>o.Start.Date?UI.T(" (+1 day)"):"")+(current&&!done?"  • "+UI.T("NOW"):""),11,UI.Muted));
-    if(!State.Compact && !string.IsNullOrWhiteSpace(o.Activity.Notes)) info.Children.Add(UI.Label(o.Activity.Notes,12,UI.Muted));
-    Grid.SetColumn(info,1); row.Children.Add(info); var toggle=UI.Button(done?"✓":"○",()=> { if(State.Completed.Contains(o.Key)) State.Completed.Remove(o.Key); else State.Completed.Add(o.Key); Save(); Refresh(true); }); toggle.ToolTip=UI.T(done?"Mark incomplete":"Mark done"); toggle.VerticalAlignment=VerticalAlignment.Center; Grid.SetColumn(toggle,2); row.Children.Add(toggle);
-    var box=UI.Box(row,current&&!done?UI.Hero:UI.Card,new Thickness(0,0,0,8)); box.BorderThickness=new Thickness(1); box.BorderBrush=current&&!done?UI.B(o.Activity.Color):UI.Card; box.MouseLeftButtonDown+=(s,e)=> { if(e.ClickCount==2) Edit(o.Activity); }; box.ToolTip=UI.T("Double-click to edit"); list.Children.Add(box);
-   }
+   dayCards.Clear();
+   foreach(var o in entries) { var card=DayCard(o,now,State.CardStyle,true); dayCards[o.Key]=card; list.Children.Add(card); }
    scroll.ScrollToVerticalOffset(offset);
   }
   void Notify() {
