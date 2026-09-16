@@ -50,7 +50,16 @@ namespace Dayglance {
     });
    };
   }
-  public static DialogWindow Dialog(Window owner,string title,double width,double height) { return new DialogWindow { Owner=owner,Title=T(title),Width=width,Height=Math.Min(height,SystemParameters.WorkArea.Height),MinWidth=width,MinHeight=320,WindowStartupLocation=WindowStartupLocation.CenterOwner,Background=Bg,Foreground=Text,FontFamily=new FontFamily("Segoe UI"),ResizeMode=ResizeMode.CanResize,ShowInTaskbar=false }; }
+  // Short accent glow pulse used to draw the eye to an element (3 beats, then restores the element's own effect/opacity).
+  public static void Attention(UIElement element) {
+   if(element==null) return; var original=element.Effect;
+   var glow=new System.Windows.Media.Effects.DropShadowEffect { Color=((SolidColorBrush)Accent).Color,ShadowDepth=0,BlurRadius=0,Opacity=1 }; element.Effect=glow;
+   var blur=new System.Windows.Media.Animation.DoubleAnimation(0,28,TimeSpan.FromMilliseconds(420)) { AutoReverse=true,RepeatBehavior=new System.Windows.Media.Animation.RepeatBehavior(3),EasingFunction=new System.Windows.Media.Animation.SineEase { EasingMode=System.Windows.Media.Animation.EasingMode.EaseInOut } };
+   blur.Completed+=(s,e)=> { if(element.Effect==glow) element.Effect=original; };
+   element.BeginAnimation(UIElement.OpacityProperty,new System.Windows.Media.Animation.DoubleAnimation(1,1,TimeSpan.FromMilliseconds(2520)) { FillBehavior=System.Windows.Media.Animation.FillBehavior.Stop });
+   glow.BeginAnimation(System.Windows.Media.Effects.DropShadowEffect.BlurRadiusProperty,blur);
+  }
+  public static DialogWindow Dialog(Window owner,string title,double width,double height) { return new DialogWindow { Owner=owner,Title=T(title),Width=width,Height=Math.Min(height,SystemParameters.WorkArea.Height),MinWidth=width,MinHeight=320,WindowStartupLocation=WindowStartupLocation.CenterOwner,Background=Brushes.Transparent,Foreground=Text,FontFamily=new FontFamily("Segoe UI"),ResizeMode=ResizeMode.CanResize,ShowInTaskbar=false }; }
  }
  public partial class MainWindow : Window {
   public State State;
@@ -59,7 +68,8 @@ namespace Dayglance {
   StackPanel list,hero;
   TextBlock dayLabel,clockLabel,summary;
   ScrollViewer scroll;
-  Button pin,compact;
+  Button pin,compact,backButton,forwardButton;
+  Border weekNow;
   DispatcherTimer timer;
   Forms.NotifyIcon tray;
   bool exiting,preview;
@@ -74,7 +84,7 @@ namespace Dayglance {
     Closing+=(s,e)=> { if(!exiting) { e.Cancel=true; Hide(); } PersistPosition(); }; Closed+=(s,e)=> { timer.Stop(); tray.Dispose(); };
     timer=new DispatcherTimer { Interval=TimeSpan.FromSeconds(10) }; timer.Tick+=(s,e)=> { Refresh(false); Notify(); }; timer.Start();
    }
-   UI.EnableBorderResize(this); SetSize(); Refresh(true); UpdateTrayLanguage(); SizeChanged+=(s,e)=> { RememberSize(); if(State.WeekView && weekPanel!=null) RenderWeek(); };
+   UI.EnableBorderResize(this); EnableLightDismiss(); EnableHistoryInput(); SetSize(); Refresh(true); UpdateTrayLanguage(); SizeChanged+=(s,e)=> { RememberSize(); if(State.WeekView && weekPanel!=null) RenderWeek(); };
   }
   void BuildView() {
    UI.Apply(State); Background=UI.Bg; Foreground=UI.Text;
@@ -97,16 +107,20 @@ namespace Dayglance {
    var toolbar=new DockPanel { Margin=new Thickness(0,0,0,12) };
    var nav=UI.Row(); nav.VerticalAlignment=VerticalAlignment.Center;
    nav.Children.Add(UI.Icon("\uE76B","Previous",()=> { selected=selected.AddDays(State.WeekView?-7:-1); Refresh(true); }));
-   var todayButton=UI.Button("Today",()=> { selected=DateTime.Today; weekColumn=-1; Refresh(true); }); todayButton.Margin=new Thickness(2,0,2,0); todayButton.MinHeight=30; todayButton.Background=Brushes.Transparent; nav.Children.Add(todayButton);
+   var todayButton=UI.Button("Today",()=> { weekColumn=-1; if(!Navigate(State.WeekView,DateTime.Today)) Refresh(true); }); todayButton.Margin=new Thickness(2,0,2,0); todayButton.MinHeight=30; todayButton.Background=Brushes.Transparent; nav.Children.Add(todayButton);
    nav.Children.Add(UI.Icon("\uE76C","Next",()=> { selected=selected.AddDays(State.WeekView?7:1); Refresh(true); }));
    compact=UI.Icon("\uE73F","Compact",ToggleCompact); compact.Margin=new Thickness(6,0,0,0); nav.Children.Add(compact);
    DockPanel.SetDock(nav,Dock.Right); toolbar.Children.Add(nav);
-   var views=UI.Row(); var dayButton=UI.Button("Day",()=>SetView(false),!State.WeekView); var weekButton=UI.Button("Week",()=>SetView(true),State.WeekView);
+   var views=UI.Row(); var dayButton=UI.Button("Day",()=>Navigate(false,selected),!State.WeekView); var weekButton=UI.Button("Week",()=>Navigate(true,selected),State.WeekView);
    foreach(var b in new[]{dayButton,weekButton}) { b.Margin=new Thickness(0); b.MinHeight=28; b.Padding=new Thickness(4,2,4,2); if(b.Background!=UI.Accent) b.Background=Brushes.Transparent; views.Children.Add(b); }
+   var history=UI.Row(); history.VerticalAlignment=VerticalAlignment.Center; backButton=UI.Icon("\uE72B","Back",GoBack); backButton.Margin=new Thickness(0,0,2,0); forwardButton=UI.Icon("\uE72A","Forward",GoForward); forwardButton.Margin=new Thickness(0,0,6,0); history.Children.Add(backButton); history.Children.Add(forwardButton); DockPanel.SetDock(history,Dock.Left); toolbar.Children.Add(history);
    var segmented=new Border { Child=views,Background=UI.Card,CornerRadius=new CornerRadius(9),Padding=new Thickness(3),HorizontalAlignment=HorizontalAlignment.Left,VerticalAlignment=VerticalAlignment.Center }; toolbar.Children.Add(segmented);
    top.Children.Add(toolbar);
-   clockLabel=UI.Label("",11,UI.Muted); clockLabel.Margin=new Thickness(0,0,0,2); top.Children.Add(clockLabel);
-   dayLabel=UI.Label("",22,UI.Text); dayLabel.FontWeight=FontWeights.SemiBold; dayLabel.Margin=new Thickness(0); top.Children.Add(dayLabel);
+   var dateRow=new DockPanel(); weekNow=new Border { Background=UI.Hero,CornerRadius=new CornerRadius(10),Padding=new Thickness(10,6,12,6),Margin=new Thickness(10,0,0,0),MaxWidth=240,VerticalAlignment=VerticalAlignment.Bottom,Cursor=Cursors.Hand,Visibility=Visibility.Collapsed,ToolTip=UI.T("Show in schedule") };
+   weekNow.MouseLeftButtonUp+=(s,e)=>FocusWeekNow(); DockPanel.SetDock(weekNow,Dock.Right); dateRow.Children.Add(weekNow);
+   var dateText=new StackPanel { VerticalAlignment=VerticalAlignment.Bottom }; dateRow.Children.Add(dateText); top.Children.Add(dateRow);
+   clockLabel=UI.Label("",11,UI.Muted); clockLabel.Margin=new Thickness(0,0,0,2); dateText.Children.Add(clockLabel);
+   dayLabel=UI.Label("",22,UI.Text); dayLabel.FontWeight=FontWeights.SemiBold; dayLabel.Margin=new Thickness(0); dayLabel.TextTrimming=TextTrimming.CharacterEllipsis; dayLabel.TextWrapping=TextWrapping.NoWrap; dateText.Children.Add(dayLabel);
    hero=new StackPanel(); top.Children.Add(hero); summary=UI.Label("",11,UI.Muted); summary.Margin=new Thickness(0,12,0,10); top.Children.Add(summary); DockPanel.SetDock(top,Dock.Top); root.Children.Add(top);
    list=new StackPanel(); scroll=new ScrollViewer { Content=list,VerticalScrollBarVisibility=ScrollBarVisibility.Auto,HorizontalScrollBarVisibility=ScrollBarVisibility.Disabled }; if(State.WeekView) { weekPanel=new DockPanel(); weekPanel.SizeChanged+=(s,e)=>RenderWeek(); root.Children.Add(weekPanel); } else { weekPanel=null; root.Children.Add(scroll); }
    hero.Visibility=State.WeekView?Visibility.Collapsed:Visibility.Visible;
@@ -138,13 +152,19 @@ namespace Dayglance {
    }
    var heroBox=UI.Box(hp,UI.Hero,new Thickness(0,12,0,0)); hero.Children.Add(heroBox);
    var focusTarget=active.Count>0?active[0]:today.FirstOrDefault(o=>o.Start>now&&!State.Completed.Contains(o.Key));
-   if(focusTarget!=null) { string focusKey=focusTarget.Key; heroBox.Cursor=Cursors.Hand; heroBox.ToolTip=UI.T("Show in schedule"); heroBox.MouseLeftButtonUp+=(s,e)=>FocusActivity(focusKey); }
+   if(focusTarget!=null) { string focusKey=focusTarget.Key; heroBox.Cursor=Cursors.Hand; heroBox.ToolTip=UI.T("Show in schedule"); heroBox.MouseLeftButtonUp+=(s,e)=>FocusActivity(focusKey,true); }
    summary.Text=UI.T("SCHEDULE")+"  /  "+entries.Count+" "+UI.T("ACTIVITIES")+"  ·  "+entries.Count(o=>State.Completed.Contains(o.Key))+" "+UI.T("DONE");
+   UpdateHistoryButtons(); weekNow.Visibility=State.WeekView?Visibility.Visible:Visibility.Collapsed; if(State.WeekView) FillWeekNow(active,now);
    if(State.WeekView) { summary.Text=UI.T("Click an activity to edit or an empty slot to add one."); RenderWeek(); return; }
    var offset=scroll.VerticalOffset; list.Children.Clear();
    if(entries.Count==0) { var empty=new StackPanel { Margin=new Thickness(8,15,8,0) }; empty.Children.Add(UI.Label("A fresh page.",20,UI.Text)); empty.Children.Add(UI.Label("Use + Activity to add something, or Manage to edit your weekly routine.",13,UI.Muted)); list.Children.Add(empty); }
    dayCards.Clear();
-   foreach(var o in entries) { var card=DayCard(o,now,State.CardStyle,true); dayCards[o.Key]=card; list.Children.Add(card); }
+   DateTime? busyUntil=null;
+   foreach(var o in entries) {
+    if(busyUntil.HasValue && o.Start>=busyUntil.Value.AddMinutes(5)) list.Children.Add(GapRow(busyUntil.Value,o.Start));
+    var card=DayCard(o,now,State.CardStyle,true); dayCards[o.Key]=card; list.Children.Add(card);
+    busyUntil=!busyUntil.HasValue||o.End>busyUntil.Value?o.End:busyUntil.Value;
+   }
    scroll.ScrollToVerticalOffset(offset);
   }
   void Notify() {
@@ -159,10 +179,10 @@ namespace Dayglance {
    } catch(Exception ex) { Debug.WriteLine(ex); }
   }
   void Edit(Activity activity) { Edit(activity,null); }
-  void Edit(Activity activity,DateTime? slot) {
+  void Edit(Activity activity,DateTime? slot,DateTime? slotEnd=null) {
    var w=UI.Dialog(this,activity==null?"Add activity":"Edit activity",480,850); var panel=new StackPanel { Margin=new Thickness(24) }; w.Content=new ScrollViewer { Content=panel,VerticalScrollBarVisibility=ScrollBarVisibility.Auto };
    panel.Children.Add(UI.Label(activity==null?"A little structure.":"Make it yours.",25,UI.Text)); panel.Children.Add(UI.Label("ACTIVITY NAME",11,UI.Muted)); var title=UI.Input(activity==null?"":activity.Title); title.MaxLength=120; panel.Children.Add(title);
-   var times=UI.Row(); var start=new TimeField(activity!=null?activity.Start:slot.HasValue?slot.Value.ToString("HH:mm"):"09:00"); start.Width=180; var end=new TimeField(activity!=null?activity.End:slot.HasValue?slot.Value.AddHours(1).ToString("HH:mm"):"10:00"); end.Width=180; end.Margin=new Thickness(12,0,0,0); panel.Children.Add(UI.Label("START / END  ·  24-HOUR TIME (HH:MM)",11,UI.Muted)); times.Children.Add(start); times.Children.Add(end); panel.Children.Add(times);
+   var times=UI.Row(); var start=new TimeField(activity!=null?activity.Start:slot.HasValue?slot.Value.ToString("HH:mm"):"09:00"); start.Width=180; var end=new TimeField(activity!=null?activity.End:slot.HasValue?(slotEnd.HasValue?slotEnd.Value:slot.Value.AddHours(1)).ToString("HH:mm"):"10:00"); end.Width=180; end.Margin=new Thickness(12,0,0,0); panel.Children.Add(UI.Label("START / END  ·  24-HOUR TIME (HH:MM)",11,UI.Muted)); times.Children.Add(start); times.Children.Add(end); panel.Children.Add(times);
    panel.Children.Add(UI.Label("An earlier end time finishes the following day.",11,UI.Muted));
    panel.Children.Add(UI.Label("REPEAT ON  ·  LEAVE EMPTY FOR ONE DATE",11,UI.Muted)); var days=UI.Row(); var checks=new List<CheckBox>(); int[] order={1,2,3,4,5,6,0}; foreach(int d in order) { var c=UI.Chip(UI.Culture.DateTimeFormat.AbbreviatedDayNames[d],activity!=null&&activity.Days.Contains(d)); c.Margin=new Thickness(0,5,5,8); checks.Add(c); days.Children.Add(c); } panel.Children.Add(days);
    var presets=UI.Row(); presets.Children.Add(UI.Button("Every day",()=>checks.ForEach(c=>c.IsChecked=true))); presets.Children.Add(UI.Button("Weekdays",()=> { for(int i=0;i<7;i++) checks[i].IsChecked=i<5; })); presets.Children.Add(UI.Button("Once",()=>checks.ForEach(c=>c.IsChecked=false))); panel.Children.Add(presets);
@@ -193,7 +213,7 @@ namespace Dayglance {
    },true)); buttons.Children.Add(UI.Button("Cancel",()=>w.Close())); panel.Children.Add(buttons); w.ShowDialog();
   }
   void Manage() {
-   var w=UI.Dialog(this,"Manage schedule",540,560); var root=new DockPanel { Margin=new Thickness(24) }; w.Content=root; var heading=UI.Label("Your routine",26,UI.Text); DockPanel.SetDock(heading,Dock.Top); root.Children.Add(heading); var all=new StackPanel(); root.Children.Add(new ScrollViewer { Content=all,VerticalScrollBarVisibility=ScrollBarVisibility.Auto });
+   var w=UI.Dialog(this,"Manage schedule",540,560); w.LightDismiss=true; var root=new DockPanel { Margin=new Thickness(24) }; w.Content=root; var heading=UI.Label("Your routine",26,UI.Text); DockPanel.SetDock(heading,Dock.Top); root.Children.Add(heading); var all=new StackPanel(); root.Children.Add(new ScrollViewer { Content=all,VerticalScrollBarVisibility=ScrollBarVisibility.Auto });
    Action fill=null; fill=()=> { all.Children.Clear(); if(State.Activities.Count==0) all.Children.Add(UI.Label("No activities yet. Close this window and choose + Activity.",14,UI.Muted)); foreach(var a in State.Activities.OrderBy(a=>a.Start).ToList()) { var p=new StackPanel(); p.Children.Add(UI.Label(a.Title,17,UI.Text)); p.Children.Add(UI.Label(a.Start+"–"+a.End+"  ·  "+(a.Days.Length==0?a.Date:string.Join(", ",a.Days.Select(d=>UI.Culture.DateTimeFormat.AbbreviatedDayNames[d]))),12,UI.Muted)); var r=UI.Row(); r.Children.Add(UI.Button("Edit",()=> { Edit(a); fill(); })); r.Children.Add(UI.Button("Delete",()=> { if(MessageBox.Show(w,UI.Language=="es"?"¿Eliminar «"+a.Title+"» y todas sus repeticiones?":"Delete ‘"+a.Title+"’ and all its future repeats?",UI.T("Delete activity"),MessageBoxButton.YesNo,MessageBoxImage.Question)==MessageBoxResult.Yes) { State.Activities.Remove(a); if(!Save()) State.Activities.Add(a); Refresh(true); fill(); } })); p.Children.Add(r); all.Children.Add(UI.Box(p,UI.Card,new Thickness(0,6,0,6))); } }; fill(); w.ShowDialog();
   }
   string StartupPath { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup),"Dayglance.lnk"); } }
