@@ -1,0 +1,286 @@
+{
+  "Version": 1,
+  "Activities": [
+    {
+      "Id": "run",
+      "Title": "Morning run",
+      "Notes": "5 km along the park loop",
+      "Color": "#A4E9CC",
+      "Start": "06:30",
+      "End": "07:15",
+      "Days": [
+        1,
+        3,
+        5
+      ],
+      "Date": null,
+      "Reminder": 0,
+      "ExtraReminders": []
+    },
+    {
+      "Id": "breakfast",
+      "Title": "Breakfast & news",
+      "Notes": "",
+      "Color": "#FFD18F",
+      "Start": "07:30",
+      "End": "08:15",
+      "Days": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "Date": null,
+      "Reminder": 0,
+      "ExtraReminders": []
+    },
+    {
+      "Id": "deep",
+      "Title": "Deep work · thesis chapter",
+      "Notes": "Draft section 3.2 and fix figure captions",
+      "Color": "#B9AAFF",
+      "Start": "09:00",
+      "End": "11:30",
+      "Days": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "Date": null,
+      "Reminder": 0,
+      "ExtraReminders": []
+    },
+    {
+      "Id": "standup",
+      "Title": "Team stand-up",
+      "Notes": "Share blockers first",
+      "Color": "#9CCBFF",
+      "Start": "11:30",
+      "End": "11:45",
+      "Days": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "Date": null,
+      "Reminder": 0,
+      "ExtraReminders": []
+    },
+    {
+      "Id": "lunch",
+      "Title": "Lunch",
+      "Notes": "",
+      "Color": "#FFD18F",
+      "Start": "13:00",
+      "End": "14:00",
+      "Days": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "Date": null,
+      "Reminder": 0,
+      "ExtraReminders": []
+    },
+    {
+      "Id": "admin",
+      "Title": "Email & admin",
+      "Notes": "",
+      "Color": "#F1AED1",
+      "Start": "14:00",
+      "End": "15:00",
+      "Days": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "Date": null,
+      "Reminder": 0,
+      "ExtraReminders": []
+    },
+    {
+      "Id": "review",
+      "Title": "Design review",
+      "Notes": "Bring the new onboarding flow",
+      "Color": "#9CCBFF",
+      "Start": "15:30",
+      "End": "17:00",
+      "Days": [
+        1,
+        3
+      ],
+      "Date": null,
+      "Reminder": 0,
+      "ExtraReminders": [
+        30
+      ]
+    },
+    {
+      "Id": "spanish",
+      "Title": "Spanish class",
+      "Notes": "Unit 7 · subjunctive",
+      "Color": "#FF9E94",
+      "Start": "17:00",
+      "End": "18:00",
+      "Days": [
+        2,
+        4
+      ],
+      "Date": null,
+      "Reminder": 0,
+      "ExtraReminders": [
+        60
+      ]
+    },
+    {
+      "Id": "gym",
+      "Title": "Gym · strength",
+      "Notes": "",
+      "Color": "#A4E9CC",
+      "Start": "18:30",
+      "End": "19:30",
+      "Days": [
+        1,
+        3,
+        5
+      ],
+      "Date": null,
+      "Reminder": 0,
+      "ExtraReminders": []
+    },
+    {
+      "Id": "cook",
+      "Title": "Cook dinner",
+      "Notes": "",
+      "Color": "#FFD18F",
+      "Start": "20:00",
+      "End": "21:00",
+      "Days": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "Date": null,
+      "Reminder": 0,
+      "ExtraReminders": []
+    },
+    {
+      "Id": "reading",
+      "Title": "Reading",
+      "Notes": "Currently: The Overstory",
+      "Color": "#C7B5DB",
+      "Start": "21:30",
+      "End": "22:15",
+      "Days": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "Date": null,
+      "Reminder": 0,
+      "ExtraReminders": []
+    },
+    {
+      "Id": "yoga",
+      "Title": "Yoga",
+      "Notes": "",
+      "Color": "#A4E9CC",
+      "Start": "09:00",
+      "End": "10:00",
+      "Days": [
+        6
+      ],
+      "Date": null,
+      "Reminder": 0,
+      "ExtraReminders": []
+    },
+    {
+      "Id": "market",
+      "Title": "Farmers market",
+      "Notes": "",
+      "Color": "#FFD18F",
+      "Start": "10:30",
+      "End": "12:00",
+      "Days": [
+        6
+      ],
+      "Date": null,
+      "Reminder": 0,
+      "ExtraReminders": []
+    },
+    {
+      "Id": "brunch",
+      "Title": "Brunch with friends",
+      "Notes": "",
+      "Color": "#F1AED1",
+      "Start": "11:00",
+      "End": "13:00",
+      "Days": [
+        0
+      ],
+      "Date": null,
+      "Reminder": 0,
+      "ExtraReminders": []
+    },
+    {
+      "Id": "prep",
+      "Title": "Meal prep",
+      "Notes": "",
+      "Color": "#FFD18F",
+      "Start": "17:00",
+      "End": "18:30",
+      "Days": [
+        0
+      ],
+      "Date": null,
+      "Reminder": 0,
+      "ExtraReminders": []
+    },
+    {
+      "Id": "dentist",
+      "Title": "Dentist",
+      "Notes": "Bring insurance card",
+      "Color": "#FF9E94",
+      "Start": "16:00",
+      "End": "16:45",
+      "Days": [],
+      "Date": "2026-09-18",
+      "Reminder": 0,
+      "ExtraReminders": [
+        1440
+      ]
+    },
+    {
+      "Id": "movie",
+      "Title": "Movie night",
+      "Notes": "",
+      "Color": "#C7B5DB",
+      "Start": "20:00",
+      "End": "22:30",
+      "Days": [
+        5
+      ],
+      "Date": null,
+      "Reminder": 0,
+      "ExtraReminders": []
+    }
+  ]
+}

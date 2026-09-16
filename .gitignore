@@ -9,3 +9,4 @@ showcase-data-*/
 *.png
 dist/
 /Dayglance.exe
+!docs/screenshots/*.png

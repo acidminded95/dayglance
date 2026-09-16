@@ -27,7 +27,7 @@ namespace Dayglance {
   public static string Language="en";
   public static bool Hour12; // 12-hour clock with AM/PM designators from the UI culture
   public static string Clock(DateTime time) { return Hour12?time.ToString("h:mm ",Culture)+(time.Hour<12?Culture.DateTimeFormat.AMDesignator:Culture.DateTimeFormat.PMDesignator):time.ToString("HH:mm",CultureInfo.InvariantCulture); }
-  public static string ClockText(string hhmm) { try { return Clock(DateTime.Today+Schedule.Time(hhmm)); } catch { return hhmm; } }
+  public static string ClockText(string hhmm) { try { return Clock(AppClock.Today+Schedule.Time(hhmm)); } catch { return hhmm; } }
   public static string HourLabel(int hour) { if(!Hour12) return hour.ToString("00")+":00"; int h=hour%24; return (h%12==0?12:h%12)+" "+(h<12?Culture.DateTimeFormat.AMDesignator:Culture.DateTimeFormat.PMDesignator); }
   public static double Scale=1; // text size setting: applied as a layout scale to windows and popups
   public static Theme[] AvailableThemes(State state) { return Themes.Concat(state.CustomThemes??new List<Theme>()).ToArray(); }
@@ -112,11 +112,11 @@ namespace Dayglance {
   public DateTime? SelectedDate { get { return value; } set { this.value=value; button.Content=value.HasValue?value.Value.ToString("dddd, d MMM yyyy",UI.Culture)+"   ▦":UI.T("Choose date"); } }
   public DateField() { button=UI.Button("",Open); Child=button; Margin=new Thickness(0,8,0,12); }
   void Open() {
-   var owner=Window.GetWindow(this); var window=UI.Dialog(owner,UI.T("Choose date"),360,395); window.ResizeMode=ResizeMode.NoResize; var root=new StackPanel { Margin=new Thickness(18) }; window.Content=root; DateTime month=new DateTime((value??DateTime.Today).Year,(value??DateTime.Today).Month,1);
+   var owner=Window.GetWindow(this); var window=UI.Dialog(owner,UI.T("Choose date"),360,395); window.ResizeMode=ResizeMode.NoResize; var root=new StackPanel { Margin=new Thickness(18) }; window.Content=root; DateTime month=new DateTime((value??AppClock.Today).Year,(value??AppClock.Today).Month,1);
    Action draw=null; draw=()=> {
     root.Children.Clear(); var nav=UI.Row(); nav.Children.Add(UI.Button("‹",()=> { month=month.AddMonths(-1); draw(); })); var label=UI.Label(month.ToString("MMMM yyyy",UI.Culture),17,UI.Text); label.Width=210; label.TextAlignment=TextAlignment.Center; nav.Children.Add(label); nav.Children.Add(UI.Button("›",()=> { month=month.AddMonths(1); draw(); })); root.Children.Add(nav);
     var grid=new UniformGrid { Columns=7,Margin=new Thickness(0,12,0,10) }; foreach(var d in UI.Culture.DateTimeFormat.AbbreviatedDayNames) { var l=UI.Label(d.Substring(0,Math.Min(2,d.Length)),11,UI.Muted); l.TextAlignment=TextAlignment.Center; grid.Children.Add(l); }
-    for(int i=0;i<(int)month.DayOfWeek;i++) grid.Children.Add(new Border()); for(int d=1;d<=DateTime.DaysInMonth(month.Year,month.Month);d++) { var selected=month.AddDays(d-1); var b=UI.Button(d.ToString(),()=> { SelectedDate=selected; window.Close(); },value.HasValue&&selected==value.Value.Date); b.Margin=new Thickness(1); b.MinWidth=0; grid.Children.Add(b); } root.Children.Add(grid); root.Children.Add(UI.Button("Today",()=> { SelectedDate=DateTime.Today; window.Close(); }));
+    for(int i=0;i<(int)month.DayOfWeek;i++) grid.Children.Add(new Border()); for(int d=1;d<=DateTime.DaysInMonth(month.Year,month.Month);d++) { var selected=month.AddDays(d-1); var b=UI.Button(d.ToString(),()=> { SelectedDate=selected; window.Close(); },value.HasValue&&selected==value.Value.Date); b.Margin=new Thickness(1); b.MinWidth=0; grid.Children.Add(b); } root.Children.Add(grid); root.Children.Add(UI.Button("Today",()=> { SelectedDate=AppClock.Today; window.Close(); }));
    }; draw(); window.ShowDialog();
   }
  }

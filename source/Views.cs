@@ -117,7 +117,7 @@ namespace Dayglance {
   }
   void ExpandTo(Occurrence o) {
    string key=o.Key; DateTime day=o.Start.Date;
-   ToggleCompact(()=> { if(State.WeekView) FocusWeekNow(); else if(day==DateTime.Today) FocusActivity(key,true); });
+   ToggleCompact(()=> { if(State.WeekView) FocusWeekNow(); else if(day==AppClock.Today) FocusActivity(key,true); });
   }
   void RefreshMini(System.Collections.Generic.List<Occurrence> today,System.Collections.Generic.List<Occurrence> active,DateTime now,bool activityChanged) {
    clockLabel.Text=now.ToString("ddd d MMM",UI.Culture)+"  ·  "+UI.Clock(now).ToUpperInvariant();
@@ -203,6 +203,7 @@ namespace Dayglance {
    }
    if(!reported && done!=null) { var wait=new System.Windows.Threading.DispatcherTimer { Interval=baseDuration }; wait.Tick+=(s,e)=> { wait.Stop(); done(); }; wait.Start(); }
   }
+  public void ScrollWeekToHour(double hour) { if(weekScroll==null) return; weekScroll.UpdateLayout(); weekScroll.ScrollToVerticalOffset(hour*Math.Max(14,42*weekZoom)); weekScroll.UpdateLayout(); }
   public void ZoomSchedule(int direction,double anchor) {
    if(!State.WeekView) { dayZoom=Math.Max(.8,Math.Min(1.7,dayZoom*(direction>0?1.1:1/1.1))); list.LayoutTransform=new ScaleTransform(dayZoom,dayZoom); return; }
    double before=weekZoom,previous=weekScroll.VerticalOffset; weekZoom=Math.Max(.65,Math.Min(3,weekZoom*(direction>0?1.15:1/1.15))); RenderWeek(); weekScroll.UpdateLayout(); weekScroll.ScrollToVerticalOffset((previous+anchor)*weekZoom/before-anchor);
@@ -212,7 +213,7 @@ namespace Dayglance {
   void RenderWeek() {
    if(weekPanel==null || ActualWidth<1) return;
    double offset=weekScroll==null?0:weekScroll.VerticalOffset,hOffset=weekScroll==null?-1:weekScroll.HorizontalOffset;
-   weekPanel.Children.Clear(); weekCardSet.Clear(); weekParts=new System.Collections.Generic.List<UIElement>[7]; for(int part=0;part<7;part++) weekParts[part]=new System.Collections.Generic.List<UIElement>(); weekNowTarget=null; weekNowCard=null; weekNowDot=null; DateTime first=Schedule.WeekStart(selected),now=DateTime.Now;
+   weekPanel.Children.Clear(); weekCardSet.Clear(); weekParts=new System.Collections.Generic.List<UIElement>[7]; for(int part=0;part<7;part++) weekParts[part]=new System.Collections.Generic.List<UIElement>(); weekNowTarget=null; weekNowCard=null; weekNowDot=null; DateTime first=Schedule.WeekStart(selected),now=AppClock.Now;
    const double bar=10,hbar=8,minColumn=110; double gutter=UI.Hour12?54:44;
    double total=weekPanel.ActualWidth>100?weekPanel.ActualWidth:ActualWidth-40, body=Math.Max(150,total-gutter-bar);
    int visible=Math.Max(3,Math.Min(7,(int)Math.Floor(body/minColumn))); double column=body/visible,width=column*7; bool sliding=visible<7;
@@ -353,7 +354,7 @@ namespace Dayglance {
   void FocusActivity(string key) { FocusActivity(key,false); }
   void FocusActivity(string key,bool pulse) {
    if(State.WeekView || State.Compact) return;
-   if(selected!=DateTime.Today) { selected=DateTime.Today; Refresh(true); }
+   if(selected!=AppClock.Today) { selected=AppClock.Today; Refresh(true); }
    Border card; if(!dayCards.TryGetValue(key,out card)) return;
    scroll.UpdateLayout(); var cards=list.Children.OfType<Border>().Where(c=>dayCards.ContainsValue(c)).ToList(); int index=cards.IndexOf(card); if(index<0) return;
    Func<FrameworkElement,double> top=el=>el.TranslatePoint(new Point(0,0),scroll).Y+scroll.VerticalOffset;
@@ -411,7 +412,7 @@ namespace Dayglance {
   }
   void FocusWeekNow() {
    if(!State.WeekView || State.Compact) return;
-   var now=DateTime.Now; var first=Schedule.WeekStart(selected); if(now.Date<first || now.Date>=first.AddDays(7)) selected=now.Date;
+   var now=AppClock.Now; var first=Schedule.WeekStart(selected); if(now.Date<first || now.Date>=first.AddDays(7)) selected=now.Date;
    focusNow=true; pulseNow=true; weekColumn=-1; Refresh(true);
   }
   // Back/forward history for view and day jumps (week headings, Day/Week switch, Today), driven by mouse X buttons and Alt+Left/Right. Arrow stepping is not recorded.
@@ -557,7 +558,7 @@ namespace Dayglance {
      p.Children.Add(section("ACTIVITY CARDS"));
      string[] styles={"stripe","band","full"}; var cardChoice=new Choice(); cardChoice.Items.AddRange(new[]{"Slim color line","Color band","Full color card"}); cardChoice.SelectedIndex=Math.Max(0,Array.IndexOf(styles,cardStyle)); cardChoice.Changed+=()=> { cardStyle=styles[cardChoice.SelectedIndex]; render(); }; p.Children.Add(cardChoice);
      var sampleActivity=new Activity { Id="sample",Title=UI.T("Sample activity"),Color=Palette.Hex(((SolidColorBrush)UI.Accent).Color),Start="09:00",End="10:30",Days=new int[0],Notes=UI.T("Double-click to edit") };
-     var sample=DayCard(new Occurrence { Activity=sampleActivity,Start=DateTime.Today.AddHours(9),End=DateTime.Today.AddHours(10.5) },DateTime.Today.AddHours(9.5),cardStyle,false); sample.Margin=new Thickness(0,0,0,4); p.Children.Add(sample);
+     var sample=DayCard(new Occurrence { Activity=sampleActivity,Start=AppClock.Today.AddHours(9),End=AppClock.Today.AddHours(10.5) },AppClock.Today.AddHours(9.5),cardStyle,false); sample.Margin=new Thickness(0,0,0,4); p.Children.Add(sample);
      p.Children.Add(section("CURRENT ACTIVITY IN WEEK VIEW"));
      string[] highlights={"line","outline","glow"}; var highlightChoice=new Choice(); highlightChoice.Items.AddRange(new[]{"Time line and dot","Accent outline","Accent outline with glow"}); highlightChoice.SelectedIndex=Math.Max(0,Array.IndexOf(highlights,weekHighlight)); highlightChoice.Changed+=()=> { weekHighlight=highlights[highlightChoice.SelectedIndex]; render(); }; p.Children.Add(highlightChoice); p.Children.Add(WeekHighlightPreview(weekHighlight));
     }
@@ -624,7 +625,7 @@ namespace Dayglance {
   }
   public void ImportState(State incoming) {
    Schedule.Validate(incoming); Directory.CreateDirectory(Storage.Folder);
-   File.WriteAllText(System.IO.Path.Combine(Storage.Folder,"before-import-"+DateTime.Now.ToString("yyyyMMdd-HHmmssfff")+".json"),Storage.Serializer().Serialize(State));
+   File.WriteAllText(System.IO.Path.Combine(Storage.Folder,"before-import-"+AppClock.Now.ToString("yyyyMMdd-HHmmssfff")+".json"),Storage.Serializer().Serialize(State));
    incoming.Pinned=State.Pinned; incoming.Compact=State.Compact; incoming.Left=State.Left; incoming.Top=State.Top; incoming.MiniLeft=State.MiniLeft; incoming.MiniTop=State.MiniTop; incoming.MiniWidth=State.MiniWidth; incoming.MiniHeight=State.MiniHeight; incoming.UiScale=State.UiScale; incoming.TimeFormat=State.TimeFormat; incoming.AutoUpdateCheck=State.AutoUpdateCheck; incoming.Notifications=State.Notifications; incoming.Sound=State.Sound; incoming.Theme=State.Theme; incoming.Language=State.Language; incoming.WeekView=State.WeekView; incoming.CardStyle=State.CardStyle; incoming.WindowWidth=State.WindowWidth; incoming.WindowHeight=State.WindowHeight; incoming.WeekHighlight=State.WeekHighlight; incoming.CustomThemes=State.CustomThemes.Concat(incoming.CustomThemes).GroupBy(t=>t.Id).Select(g=>g.First()).ToList();
    var previous=State; State=incoming; try { Storage.Save(State); } catch { State=previous; throw; }
   }

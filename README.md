@@ -2,6 +2,24 @@
 
 A free, local Windows schedule widget. English and Spanish. Full source under the MIT license. No account, payment, or telemetry; the only network request is the optional update check against this repository's GitHub releases.
 
+
+<p align="center"><img src="docs/screenshots/week-view.png" alt="Week view with the current activity glowing" width="900"></p>
+
+<table>
+<tr>
+<td align="center"><img src="docs/screenshots/day-view.png" alt="Day view" width="260"><br><sub>Day view · Midnight mint</sub></td>
+<td align="center"><img src="docs/screenshots/day-terracotta.png" alt="Day view in the Terracotta theme" width="260"><br><sub>Full-color cards · Terracotta</sub></td>
+<td align="center"><img src="docs/screenshots/mini-widget.png" alt="Mini widget" width="200"><br><sub>Mini widget</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/screenshots/settings.png" alt="Settings" width="260"><br><sub>Settings</sub></td>
+<td align="center"><img src="docs/screenshots/activity-editor.png" alt="Activity editor" width="260"><br><sub>Activity editor</sub></td>
+<td align="center"><img src="docs/screenshots/week-lavender-12h.png" alt="Week view, Lavender dusk theme, 12-hour clock" width="260"><br><sub>Lavender dusk · 12-hour clock</sub></td>
+</tr>
+</table>
+
+<sub>Screenshots use the fictional schedule in <code>docs/sample-schedule.json</code>.</sub>
+
 ## Install
 
 1. Download the latest `Dayglance-<version>.zip` from the repository's **Releases** page.
@@ -92,6 +110,7 @@ Each successful save retains the previous file as `schedule.json.bak`. If data i
 - `Dayglance.exe --self-test`: schedule, reminder, validation, palette, clock format, release-version and persistence checks.
 - `Dayglance.exe --ui-test`: controls, editor, themes and theme creator, Spanish, window sizing, mini widget, narrow week scrolling, backup and notifications.
 - `Dayglance.exe --showcase <schedule.json>`: rendering checks across all six themes, with screenshots beside the executable.
+- `Dayglance.exe --screenshots docs\sample-schedule.json docs\screenshots`: regenerates the README screenshots from the sample schedule at a fixed date and time (run from the repository root).
 
 Results go to `test-results.txt`, `ui-test-results.txt` and `showcase-results.txt`; tests use isolated data folders.
 

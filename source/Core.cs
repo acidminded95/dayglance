@@ -53,6 +53,12 @@ namespace Dayglance {
   public DateTime Start, End;
   public string Key { get { return Activity.Id+"@"+Start.ToString("yyyy-MM-dd",CultureInfo.InvariantCulture); } }
  }
+ // Single source of "now" for the UI, so screenshots and demos can render a fixed moment.
+ public static class AppClock {
+  public static DateTime? Fixed;
+  public static DateTime Now { get { return Fixed??DateTime.Now; } }
+  public static DateTime Today { get { return Now.Date; } }
+ }
  public static class Schedule {
   public static TimeSpan Time(string s) { TimeSpan value; if(!TimeSpan.TryParseExact(s,"hh\\:mm",CultureInfo.InvariantCulture,out value)) throw new Exception("Use HH:MM, between 00:00 and 23:59."); return value; }
   public static List<Occurrence> ForDay(State state, DateTime day) {

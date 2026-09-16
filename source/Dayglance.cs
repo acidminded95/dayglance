@@ -129,8 +129,8 @@ namespace Dayglance {
  }
  public partial class MainWindow : Window {
   public State State;
-  DateTime selected=DateTime.Today;
-  DateTime lastToday=DateTime.Today;
+  DateTime selected=AppClock.Today;
+  DateTime lastToday=AppClock.Today;
   StackPanel list,hero;
   TextBlock dayLabel,clockLabel,summary;
   ScrollViewer scroll;
@@ -174,7 +174,7 @@ namespace Dayglance {
    var toolbar=new DockPanel { Margin=new Thickness(0,0,0,12) };
    var nav=UI.Row(); nav.VerticalAlignment=VerticalAlignment.Center;
    nav.Children.Add(UI.Icon("\uE76B","Previous",()=> { selected=selected.AddDays(State.WeekView?-7:-1); Refresh(true); }));
-   var todayButton=UI.Button("Today",()=> { weekColumn=-1; if(!Navigate(State.WeekView,DateTime.Today)) Refresh(true); }); todayButton.Margin=new Thickness(2,0,2,0); todayButton.MinHeight=30; todayButton.Background=Brushes.Transparent; nav.Children.Add(todayButton);
+   var todayButton=UI.Button("Today",()=> { weekColumn=-1; if(!Navigate(State.WeekView,AppClock.Today)) Refresh(true); }); todayButton.Margin=new Thickness(2,0,2,0); todayButton.MinHeight=30; todayButton.Background=Brushes.Transparent; nav.Children.Add(todayButton);
    nav.Children.Add(UI.Icon("\uE76C","Next",()=> { selected=selected.AddDays(State.WeekView?7:1); Refresh(true); }));
    compact=UI.Icon("\uE73F","Mini widget",ToggleCompact); compact.Margin=new Thickness(6,0,0,0); nav.Children.Add(compact);
    DockPanel.SetDock(nav,Dock.Right); toolbar.Children.Add(nav);
@@ -221,7 +221,7 @@ namespace Dayglance {
   }
   public void Refresh(bool force) {
    if(settingsOpen && !force) return;
-   DateTime now=DateTime.Now; if(selected==lastToday) selected=now.Date; lastToday=now.Date; clockLabel.Text=now.ToString("ddd d MMM",UI.Culture)+"  ·  "+UI.Clock(now).ToUpperInvariant();
+   DateTime now=AppClock.Now; if(selected==lastToday) selected=now.Date; lastToday=now.Date; clockLabel.Text=now.ToString("ddd d MMM",UI.Culture)+"  ·  "+UI.Clock(now).ToUpperInvariant();
    var today=Schedule.ForDay(State,now.Date); var active=today.Where(o=>o.Start<=now && o.End>now && !State.Completed.Contains(o.Key)).ToList();
    var entries=Schedule.ForDay(State,selected); var sig=selected.ToString("O")+now.ToString("yyyyMMddHHmm")+State.Completed.Count+State.Activities.Count;
    if(!force && signature==sig) return; signature=sig;
@@ -265,11 +265,11 @@ namespace Dayglance {
   void Notify() {
    if(!State.Notifications) return;
    try {
-    var due=Schedule.Reminders(State,DateTime.Now); if(due.Count==0) return;
+    var due=Schedule.Reminders(State,AppClock.Now); if(due.Count==0) return;
     foreach(var reminder in due) State.Reminded.Add(reminder.Key);
     if(!Save()) { foreach(var reminder in due) State.Reminded.Remove(reminder.Key); return; }
     string title=due.Count==1?due[0].Occurrence.Activity.Title:UI.T("Activities coming up");
-    Func<Occurrence,string> span=o=>(o.Start.Date==DateTime.Today?"":o.Start.ToString("ddd d MMM",UI.Culture)+"  ·  ")+UI.Clock(o.Start)+" – "+UI.Clock(o.End);
+    Func<Occurrence,string> span=o=>(o.Start.Date==AppClock.Today?"":o.Start.ToString("ddd d MMM",UI.Culture)+"  ·  ")+UI.Clock(o.Start)+" – "+UI.Clock(o.End);
     var single=due[0].Occurrence;
     string detail=due.Count==1?span(single)+(string.IsNullOrWhiteSpace(single.Activity.Notes)?"":"\n"+single.Activity.Notes.Trim()):string.Join("\n",due.Take(4).Select(r=>r.Occurrence.Activity.Title+"  ·  "+span(r.Occurrence)));
     new ReminderToast(title,detail,Restore,State.Sound);
@@ -331,6 +331,7 @@ namespace Dayglance {
    if(args.Contains("--self-test")) { Tests.Run(); return; }
    if(args.Contains("--ui-test")) { Tests.UIRun(); return; }
    if(args.Contains("--showcase")) { Tests.Showcase(args.Last()); return; }
+   if(args.Contains("--screenshots")) { int at=Array.IndexOf(args,"--screenshots"); Tests.Screenshots(args.Length>at+1?args[at+1]:"docs\\sample-schedule.json",args.Length>at+2?args[at+2]:"docs\\screenshots"); return; }
    if(args.Contains("--preview")) { Preview(args.Last()); return; }
    bool created; using(var mutex=new Mutex(true,"Local\\Dayglance.Desktop.1",out created)) {
     if(!created) { MessageBox.Show("Dayglance is already running. Open it from the system tray.","Dayglance"); return; }
@@ -348,11 +349,11 @@ namespace Dayglance {
   // Startup failures used to exit silently; log the full exception and tell the user where it is.
   static void ReportCrash(Exception ex,bool fatal) {
    if(ex==null) return; string log=Path.Combine(Storage.Folder,"crash.log");
-   try { Directory.CreateDirectory(Storage.Folder); File.AppendAllText(log,DateTime.Now.ToString("O")+(fatal?"  FATAL":"")+"\r\n"+ex+"\r\n\r\n"); } catch {}
+   try { Directory.CreateDirectory(Storage.Folder); File.AppendAllText(log,AppClock.Now.ToString("O")+(fatal?"  FATAL":"")+"\r\n"+ex+"\r\n\r\n"); } catch {}
    try { MessageBox.Show("Dayglance encountered an error"+(fatal?" and has to close":"")+":\n\n"+ex.GetType().Name+": "+ex.Message+"\n\nDetails were saved to:\n"+log,"Dayglance",MessageBoxButton.OK,MessageBoxImage.Error); } catch {}
   }
   static void Preview(string path) {
-   var s=new State(); var now=DateTime.Now;
+   var s=new State(); var now=AppClock.Now;
    foreach(var a in new[]{new Activity { Title="A moment to reset",Start=now.AddMinutes(-75).ToString("HH:mm"),End=now.AddMinutes(-45).ToString("HH:mm"),Color="#B9AAFF",Notes="A walk, some water, a clear head." },new Activity { Title="Make something meaningful",Start=now.AddMinutes(-20).ToString("HH:mm"),End=now.AddMinutes(40).ToString("HH:mm"),Color="#A4E9CC",Notes="One task. A little less noise." },new Activity { Title="Move & recharge",Start=now.AddMinutes(50).ToString("HH:mm"),End=now.AddMinutes(90).ToString("HH:mm"),Color="#FFD18F",Notes="Step away from the screen." }}) { a.Id=Guid.NewGuid().ToString("N"); a.Days=Enumerable.Range(0,7).ToArray(); a.Reminder=0; s.Activities.Add(a); }
    s.Completed.Add(Schedule.ForDay(s,now).First().Key); var app=new Application(); var w=new MainWindow(s,true); w.ShowInTaskbar=false; w.ShowActivated=false; w.Left=-10000; w.Top=-10000; w.Show(); w.UpdateLayout(); var bmp=new RenderTargetBitmap((int)w.ActualWidth,(int)w.ActualHeight,96,96,PixelFormats.Pbgra32); bmp.Render(w); var encoder=new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bmp)); using(var f=File.Create(path)) encoder.Save(f); w.Close(); app.Shutdown();
   }

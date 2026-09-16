@@ -97,6 +97,41 @@ namespace Dayglance {
    } catch(Exception ex) { File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"ui-test-results.txt"),ex.ToString()); Environment.ExitCode=1; }
    app.Shutdown();
   }
+  // Renders README screenshots from a sample schedule at a fixed moment (Wed 16 Sep 2026, 10:20), at 2x resolution.
+  // Usage: Dayglance.exe --screenshots <schedule.json> <output folder>
+  public static void Screenshots(string input,string output) {
+   var app=new Application(); app.ShutdownMode=ShutdownMode.OnExplicitShutdown;
+   string results=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"screenshots-results.txt");
+   try {
+    output=Path.GetFullPath(output); Directory.CreateDirectory(output); input=Path.GetFullPath(input);
+    Storage.Folder=Path.Combine(Path.GetTempPath(),"dayglance-screenshots-"+Guid.NewGuid().ToString("N"));
+    AppClock.Fixed=new DateTime(2026,9,16,10,20,0);
+    var written=new List<string>();
+    Func<string,State> load=theme=> { var s=Storage.Read(input); s.Theme=theme; s.Language="en"; s.Pinned=false; s.Notifications=false; s.Compact=false; s.WeekView=false; return s; };
+    Func<State,double,double,MainWindow> open=(s,width,height)=> {
+     var w=new MainWindow(s,true); w.ShowInTaskbar=false; w.ShowActivated=false; w.Show(); w.Width=width; w.Height=height; w.Left=-20000; w.Top=-20000;
+     w.UpdateLayout(); w.Refresh(true); w.UpdateLayout(); return w;
+    };
+    Action<Window,string> shoot=(window,name)=> { Render(window,Path.Combine(output,name),2); written.Add(name); };
+
+    var day=load("midnight"); day.CardStyle="band"; var w1=open(day,520,860); shoot(w1,"day-view.png");
+    app.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle,new Action(()=> { var dialog=app.Windows.Cast<Window>().First(x=>x!=w1); dialog.UpdateLayout(); shoot(dialog,"settings.png"); dialog.Close(); })); Click(w1,"Settings");
+    app.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle,new Action(()=> { var dialog=app.Windows.Cast<Window>().First(x=>x!=w1); dialog.UpdateLayout(); shoot(dialog,"activity-editor.png"); dialog.Close(); })); Click(w1,"Add activity");
+    w1.Close();
+
+    var week=load("midnight"); week.WeekView=true; week.WeekHighlight="glow"; var w2=open(week,1280,860); w2.ScrollWeekToHour(6.5); w2.UpdateLayout(); shoot(w2,"week-view.png"); w2.Close();
+    var mini=load("midnight"); mini.Compact=true; mini.MiniWidth=340; mini.MiniHeight=380; var w3=open(mini,340,380); shoot(w3,"mini-widget.png"); w3.Close();
+    var light=load("terracotta"); light.CardStyle="full"; var w4=open(light,520,860); shoot(w4,"day-terracotta.png"); w4.Close();
+    var twelve=load("lavender"); twelve.WeekView=true; twelve.TimeFormat="12"; twelve.WeekHighlight="outline"; var w5=open(twelve,1280,860); w5.ScrollWeekToHour(6.5); w5.UpdateLayout(); shoot(w5,"week-lavender-12h.png"); w5.Close();
+
+    File.WriteAllText(results,"PASS: "+written.Count+" screenshots written to "+output+"\r\n"+string.Join("\r\n",written));
+   } catch(Exception ex) { File.WriteAllText(results,ex.ToString()); Environment.ExitCode=1; }
+   AppClock.Fixed=null; app.Shutdown();
+  }
+  static void Render(Window w,string path,double scale) {
+   w.UpdateLayout(); var bitmap=new RenderTargetBitmap((int)Math.Ceiling(w.ActualWidth*scale),(int)Math.Ceiling(w.ActualHeight*scale),96*scale,96*scale,PixelFormats.Pbgra32); bitmap.Render(w);
+   var encoder=new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(bitmap)); using(var f=File.Create(path)) encoder.Save(f);
+  }
   public static void Showcase(string input) {
    var app=new Application(); app.ShutdownMode=ShutdownMode.OnExplicitShutdown;
    try {
