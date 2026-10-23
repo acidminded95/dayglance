@@ -317,11 +317,17 @@ namespace Dayglance {
      var old=State.Activities.ToList(); if(activity!=null) State.Activities.Remove(activity); State.Activities.Add(a);
      if(!Save()) { State.Activities=old; return; } w.Close(); Refresh(true);
     } catch(Exception ex) { error.Text=UI.T("Check your details: ")+UI.T(ex.Message); }
-   },true)); buttons.Children.Add(UI.Button("Cancel",()=>w.Close())); panel.Children.Add(buttons); w.ShowDialog();
+   },true)); buttons.Children.Add(UI.Button("Cancel",()=>w.Close()));
+   if(activity!=null) buttons.Children.Add(UI.Button("Delete",()=> { if(Delete(w,activity)) w.Close(); }));
+   panel.Children.Add(buttons); w.ShowDialog();
+  }
+  bool Delete(Window owner,Activity a) {
+   if(MessageBox.Show(owner,UI.Language=="es"?"¿Eliminar «"+a.Title+"» y todas sus repeticiones?":"Delete ‘"+a.Title+"’ and all its future repeats?",UI.T("Delete activity"),MessageBoxButton.YesNo,MessageBoxImage.Question)!=MessageBoxResult.Yes) return false;
+   State.Activities.Remove(a); bool saved=Save(); if(!saved) State.Activities.Add(a); Refresh(true); return saved;
   }
   void Manage() {
    var w=UI.Dialog(this,"Manage schedule",540,560); w.LightDismiss=true; var root=new DockPanel { Margin=new Thickness(24) }; w.Content=root; var heading=UI.Label("Your routine",26,UI.Text); DockPanel.SetDock(heading,Dock.Top); root.Children.Add(heading); var all=new StackPanel(); root.Children.Add(new ScrollViewer { Content=all,VerticalScrollBarVisibility=ScrollBarVisibility.Auto });
-   Action fill=null; fill=()=> { all.Children.Clear(); if(State.Activities.Count==0) all.Children.Add(UI.Label("No activities yet. Close this window and choose + Activity.",14,UI.Muted)); foreach(var a in State.Activities.OrderBy(a=>a.Start).ToList()) { var p=new StackPanel(); p.Children.Add(UI.Label(a.Title,17,UI.Text)); p.Children.Add(UI.Label(UI.ClockText(a.Start)+" – "+UI.ClockText(a.End)+"  ·  "+(a.Days.Length==0?a.Date:string.Join(", ",a.Days.Select(d=>UI.Culture.DateTimeFormat.AbbreviatedDayNames[d]))),12,UI.Muted)); var r=UI.Row(); r.Children.Add(UI.Button("Edit",()=> { Edit(a); fill(); })); r.Children.Add(UI.Button("Delete",()=> { if(MessageBox.Show(w,UI.Language=="es"?"¿Eliminar «"+a.Title+"» y todas sus repeticiones?":"Delete ‘"+a.Title+"’ and all its future repeats?",UI.T("Delete activity"),MessageBoxButton.YesNo,MessageBoxImage.Question)==MessageBoxResult.Yes) { State.Activities.Remove(a); if(!Save()) State.Activities.Add(a); Refresh(true); fill(); } })); p.Children.Add(r); all.Children.Add(UI.Box(p,UI.Card,new Thickness(0,6,0,6))); } }; fill(); w.ShowDialog();
+   Action fill=null; fill=()=> { all.Children.Clear(); if(State.Activities.Count==0) all.Children.Add(UI.Label("No activities yet. Close this window and choose + Activity.",14,UI.Muted)); foreach(var a in State.Activities.OrderBy(a=>a.Start).ToList()) { var p=new StackPanel(); p.Children.Add(UI.Label(a.Title,17,UI.Text)); p.Children.Add(UI.Label(UI.ClockText(a.Start)+" – "+UI.ClockText(a.End)+"  ·  "+(a.Days.Length==0?a.Date:string.Join(", ",a.Days.Select(d=>UI.Culture.DateTimeFormat.AbbreviatedDayNames[d]))),12,UI.Muted)); var r=UI.Row(); r.Children.Add(UI.Button("Edit",()=> { Edit(a); fill(); })); r.Children.Add(UI.Button("Delete",()=> { if(Delete(w,a)) fill(); })); p.Children.Add(r); all.Children.Add(UI.Box(p,UI.Card,new Thickness(0,6,0,6))); } }; fill(); w.ShowDialog();
   }
   string StartupPath { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Startup),"Dayglance.lnk"); } }
 
