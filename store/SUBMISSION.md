@@ -1,0 +1,153 @@
+# Dayglance in the Microsoft Store
+
+Everything needed to publish Dayglance as a **private-audience** Store app from the **Acidminded** Partner Center account: how to build and test the package, and the text to paste into each Partner Center section.
+
+## 1. Paste the product identity
+
+Partner Center → Dayglance → Product management → **Product identity**. Copy into `store/AppxManifest.xml`, character for character:
+
+| Partner Center | Manifest |
+| --- | --- |
+| Package/Identity/Name | `<Identity Name="...">` (placeholder `Acidminded.Dayglance`) |
+| Package/Identity/Publisher | `<Identity Publisher="CN=...">` (placeholder `CN=00000000-...`) |
+| Package/Identity/PublisherDisplayName | `<PublisherDisplayName>` (`Acidminded`) |
+
+## 2. Build the package
+
+Needs the Windows 10/11 SDK (it brings `makeappx.exe`, `makepri.exe`, `signtool.exe` and the App Certification Kit).
+
+```powershell
+.\source\Package-Store.ps1
+# -> dist\store\Dayglance-2.1.1.0.msix (unsigned, for upload)
+```
+
+The package version is `Version.cs` plus `.0` (2.1.1 → 2.1.1.0). Every upload must be higher than the last, so bump `Version.cs` for the update rehearsal (2.1.2 → 2.1.2.0). The **Store package** GitHub workflow builds the same MSIX on every pull request and keeps it as a downloadable artifact.
+
+What the Store build (`Build.ps1 -Store`) changes:
+
+- No self-updater: `Updates.cs`, the update timer and the update settings are compiled out. The Store build makes no network requests.
+- Start at sign-in uses the manifest's `windows.startupTask` (off by default). Settings → Reminders shows a button that opens Windows Settings → Apps → Startup instead of the old Startup-folder shortcut.
+- Data stays in `%LOCALAPPDATA%\Dayglance` as before; Windows redirects it to `%LOCALAPPDATA%\Packages\<package family name>\LocalCache\Local\Dayglance` and deletes it on uninstall.
+
+## 3. Install locally and run WACK
+
+An MSIX installs only when signed. Sign a **copy** with a throwaway certificate whose subject equals the manifest Publisher (PowerShell as admin, from `dist\store`):
+
+```powershell
+$cert = New-SelfSignedCertificate -Type Custom -Subject "CN=<publisher GUID>" -KeyUsage DigitalSignature -FriendlyName "Dayglance local test" -CertStoreLocation "Cert:\CurrentUser\My" -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
+$pw = ConvertTo-SecureString -String "local-test" -Force -AsPlainText
+Export-PfxCertificate -Cert $cert -FilePath dayglance-test.pfx -Password $pw
+Import-PfxCertificate -FilePath dayglance-test.pfx -CertStoreLocation Cert:\LocalMachine\TrustedPeople -Password $pw
+Copy-Item Dayglance-2.1.1.0.msix Dayglance-local.msix
+signtool sign /fd SHA256 /f dayglance-test.pfx /p local-test Dayglance-local.msix
+Add-AppxPackage .\Dayglance-local.msix
+```
+
+If you already run the ZIP version, quit it from the tray first (both use the same single-instance lock, and the ZIP version's data is not shared with the Store version).
+
+Check: Start menu tile and taskbar icon, launch, add an activity, quit from the tray, relaunch (activity still there), Test reminder, Settings → Data & updates says updates come through the Store, Settings → Reminders → Open startup settings shows Dayglance (turn it on, sign out and in). Then **Windows App Cert Kit → Validate Store App → Dayglance** and fix every failure. Upload the unsigned `Dayglance-2.1.1.0.msix`. `*.pfx` is git-ignored; never commit it.
+
+## 4. Partner Center sections
+
+### Pricing and availability
+
+- Markets: all markets
+- Visibility: **Private audience**. Known user group "Dayglance testers": your Microsoft account plus a second account. Never choose Public.
+- Pricing: Free, no free trial, no sale
+- Publish date: as soon as possible after certification
+
+### Properties
+
+- Category: Productivity (no subcategory)
+- Privacy policy URL: TODO (where `docs/privacy.md` is published)
+- Website: https://github.com/acidminded95/dayglance
+- Support contact info: TODO (email from Dav)
+- Product declarations: defaults; leave the accessibility box unticked unless tested with a screen reader and keyboard only
+- System requirements: minimum memory 4 GB
+- Generative AI: No
+
+### Age ratings (IARC)
+
+Category **All other app types**. No to violence, fear, sexual content, crude humor, drugs, alcohol, tobacco, gambling and language. Users interact or share content: No. Shares location or personal info: No. Digital purchases: No. Unrestricted internet: No. Expected: Everyone / PEGI 3.
+
+### Packages
+
+Upload `Dayglance-2.1.1.0.msix`. Device family: Windows 10/11 Desktop only.
+
+### Store listing (English, United States)
+
+**Description**
+
+> Dayglance is a small schedule widget that keeps your day in view: what you're doing now, what comes next, and gentle reminders before each activity starts.
+>
+> Plan a routine once and let it repeat. Each activity has a start and end time, a color, optional notes and the days it repeats on, or a single date. The day view lists your activities as cards with the current one highlighted and a progress bar; the week view lays out up to seven days with a live time line. In the week view, click an empty slot to add an activity there; click any card to edit it.
+>
+> Shrink Dayglance to a mini widget that shows only the current or next activity, pin it on top of other windows, or hide it in the system tray. Reminders appear as small themed cards with an optional soft chime, at the start time and, if you like, minutes, hours or days ahead.
+>
+> Make it yours with six built-in themes or your own, created from four colors with readable-contrast suggestions. Choose 12- or 24-hour time, three card styles and four text sizes. Dayglance speaks English and Spanish.
+>
+> Your schedule stays on your PC. There's no account, no ads, no analytics and no internet connection. Export your schedule to a file for backup or to share it, and import it on another PC.
+>
+> Reminders work while Dayglance is running, including from the tray. Turn on "start at sign-in" in Windows Settings → Apps → Startup to have it ready every day. Uninstalling Dayglance removes its saved schedule, so export a backup first if you want to keep it.
+
+**Short description**
+
+> Your day at a glance: a schedule widget with gentle reminders, themes and a mini view. Free, private, no account.
+
+**What's new in this version**
+
+> First Microsoft Store release.
+
+**Product features**
+
+- Day view with the current activity highlighted and its progress
+- Week view of three to seven days with a live time line
+- Mini widget that shows what's on now or next
+- Repeating or one-time activities with colors and notes
+- Reminders at the start time and an optional earlier reminder
+- Six themes plus your own custom themes
+- English and Spanish, 12- or 24-hour time
+- Export and import your schedule as a file
+- No account, no ads, no analytics; your schedule stays on your PC
+
+**Search terms:** schedule, routine, planner, daily planner, reminders, widget, time blocking
+
+**Copyright:** © 2026 Acidminded
+
+**Screenshots** (`store/listing/screenshots/`, 1920×1080, rendered from the sample schedule):
+1. `1-week-view.png`: "Your week at a glance, with a live time line"
+2. `2-day-and-mini-widget.png`: "Day view and the mini widget"
+3. `3-editor-and-terracotta.png`: "Add activities with colors, repeats and reminders"
+4. `4-settings-and-lavender.png`: "Six themes, or create your own"
+
+**Logos** (`store/listing/`): app tile icon `app-tile-icon-300.png` (300×300), box art `box-art-1080x1080.png`, poster art `poster-art-720x1080.png`.
+
+### Submission options
+
+- Publishing hold: publish as soon as it passes certification
+- Restricted capabilities → **runFullTrust**:
+
+> Dayglance is a desktop (WPF, .NET Framework 4.8) app packaged as MSIX. It needs runFullTrust because it runs as a standard Win32 desktop process. It stores its data only in its own app data folder, installs no drivers or services, makes no system-wide changes and does not access other apps' data.
+
+- **Notes for certification:**
+
+> No account or sign-in is needed, and the app makes no network requests. On first launch Dayglance opens a small widget window. To try it in two minutes: click + in the title bar, enter a title, set a start time a minute or two from now, keep "Remind me when it starts" on and Save. The activity appears in the day view, and a small reminder card appears in the bottom-right corner at the start time. Day / Week switches views; the expand/shrink button switches to the mini widget. Settings (gear icon) → Reminders → Test reminder shows a reminder immediately. Closing the window with × hides Dayglance in the system tray (it keeps running so reminders work); right-click the tray icon → Quit to exit. Start-at-sign-in is an optional startup task, off by default, which the user turns on in Windows Settings → Apps → Startup.
+
+## 5. Lessons log
+
+| Area | What happened | Time it took | Fix | Applies to the next app? |
+| --- | --- | --- | --- | --- |
+| Name reservation and identity paste |  |  |  |  |
+| MSIX build errors |  |  |  |  |
+| WACK results |  |  |  |  |
+| runFullTrust: extra questions or delay? |  |  |  |  |
+| Privacy policy accepted as written? |  |  |  |  |
+| IARC rating received |  |  |  |  |
+| Listing assets rejected or resized? |  |  |  |  |
+| Certification time and report |  |  |  |  |
+| Private audience: how a tester gets in (link, sign-in, Store app) |  |  |  |  |
+| Install size, install time, data folder, uninstall |  |  |  |  |
+| Update submission: time to reach testers |  |  |  |  |
+| Emails or messages from Microsoft |  |  |  |  |
+| Packaging a csc-only WPF app | No Visual Studio project, so the MSIX is a hand-written manifest + `makepri` + `makeappx` (`source/Package-Store.ps1`). | 1 session | Electron gets this from electron-builder's `appx` target instead. | Partly: the identity, tiles, startupTask and runFullTrust text carry over. |
+| Self-updater and Startup-folder shortcut | Both had to go for MSIX. Compiled out with a `STORE` define so the GitHub ZIP keeps working unchanged. | 1 session | Electron: disable electron-updater when `process.windowsStore` is true; use the appx `startupTask`. | Yes |
