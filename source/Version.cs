@@ -8,5 +8,11 @@ namespace Dayglance {
  public static class AppInfo {
   public const string Version="2.1.1";
   public const string Repository="acidminded95/dayglance";
+  // Build.ps1 -Store compiles with STORE: no self-updater (the Store updates the app) and a manifest startup task.
+#if STORE
+  public const bool Store=true;
+#else
+  public const bool Store=false;
+#endif
  }
 }

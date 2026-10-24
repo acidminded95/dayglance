@@ -10,3 +10,9 @@ showcase-data-*/
 dist/
 /Dayglance.exe
 !docs/screenshots/*.png
+!store/Assets/*.png
+!store/listing/*.png
+build/
+# Local MSIX test-signing certificate; never commit it
+*.pfx
+!store/listing/screenshots/*.png

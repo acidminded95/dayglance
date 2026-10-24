@@ -1,3 +1,5 @@
+// Not part of the Store build: Store apps may only update through the Store (policy 10.2).
+#if !STORE
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -75,3 +77,4 @@ Start-Process -FilePath (Join-Path $Target 'Dayglance.exe')
 ";
  }
 }
+#endif

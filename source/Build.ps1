@@ -1,4 +1,5 @@
-param([string]$OutputDirectory)
+# -Store builds the Microsoft Store variant (STORE defined: no self-updater, startup through the MSIX manifest).
+param([string]$OutputDirectory,[switch]$Store)
 $ErrorActionPreference = 'Stop'
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { $OutputDirectory = $PSScriptRoot }
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
@@ -6,6 +7,7 @@ $framework = Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319'
 $compiler = Join-Path $framework 'csc.exe'
 $references = @('System.dll','System.Core.dll','System.Xaml.dll','System.Web.Extensions.dll','System.Windows.Forms.dll','System.Drawing.dll','Microsoft.CSharp.dll','System.IO.Compression.dll','System.IO.Compression.FileSystem.dll','WPF/WindowsBase.dll','WPF/PresentationCore.dll','WPF/PresentationFramework.dll')
 $arguments = @('/nologo','/target:winexe','/platform:anycpu','/optimize+','/utf8output',('/out:' + (Join-Path $OutputDirectory 'Dayglance.exe')),('/win32manifest:' + (Join-Path $PSScriptRoot 'app.manifest')))
+if ($Store) { $arguments += '/define:STORE' }
 foreach ($reference in $references) { $arguments += '/reference:' + (Join-Path $framework $reference) }
 # Every C# file in this folder is part of the app.
 $arguments += @(Get-ChildItem -Path $PSScriptRoot -Filter '*.cs' | Sort-Object Name | ForEach-Object { $_.FullName })
