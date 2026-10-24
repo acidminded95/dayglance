@@ -170,7 +170,7 @@ Uses the same screenshots and logos as the English listing.
 3. "Añade actividades con colores, repeticiones y avisos"
 4. "Seis temas, o crea el tuyo"
 
-The screenshots show the English interface. A Spanish set can be rendered later by switching the app to Español before running `--screenshots`.
+The screenshots show the English interface. A Spanish set would need a small change to `--screenshots`, which is fixed to English (Tests.cs); optional, since Spanish listings may use English screenshots.
 
 ### Submission options
 
