@@ -21,7 +21,7 @@ $manifest = (Get-Content (Join-Path $root 'store\AppxManifest.xml') -Raw).Replac
 Set-Content -Path (Join-Path $stage 'AppxManifest.xml') -Value $manifest -Encoding UTF8
 # resources.pri maps Assets\Square150x150Logo.png to the scale-* and targetsize-* files.
 $priConfig = Join-Path $OutputDirectory 'priconfig.xml'
-& $makepri createconfig /cf $priConfig /dq en-US /pv 10.0.0 /o | Out-Null
+& $makepri createconfig /cf $priConfig /dq en-US_es-MX /pv 10.0.0 /o | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'makepri createconfig failed.' }
 & $makepri new /pr $stage /cf $priConfig /mn (Join-Path $stage 'AppxManifest.xml') /of (Join-Path $stage 'resources.pri') /o
 if ($LASTEXITCODE -ne 0) { throw 'makepri new failed.' }

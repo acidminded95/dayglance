@@ -59,7 +59,7 @@ Check: Start menu tile and taskbar icon, launch, add an activity, quit from the 
 ### Properties
 
 - Category: Productivity (no subcategory)
-- Privacy policy URL: TODO (where `docs/privacy.md` is published)
+- Privacy policy URL: on acidminded.com (TODO: exact URL once published; source text is `docs/privacy.md`)
 - Website: https://github.com/acidminded95/dayglance
 - Support contact info: david@acidminded.com (switch to support@acidminded.com in a later submission once that address exists)
 - Product declarations: defaults; leave the accessibility box unticked unless tested with a screen reader and keyboard only
@@ -121,6 +121,56 @@ Upload `Dayglance-2.1.1.0.msix`. Device family: Windows 10/11 Desktop only.
 4. `4-settings-and-lavender.png`: "Six themes, or create your own"
 
 **Logos** (`store/listing/`): app tile icon `app-tile-icon-300.png` (300×300), box art `box-art-1080x1080.png`, poster art `poster-art-720x1080.png`.
+
+### Store listing (Spanish, Mexico)
+
+Uses the same screenshots and logos as the English listing.
+
+**Descripción**
+
+> Dayglance es un pequeño widget de horario que mantiene tu día a la vista: lo que estás haciendo ahora, lo que sigue y avisos suaves antes de que empiece cada actividad.
+>
+> Planea tu rutina una vez y deja que se repita. Cada actividad tiene hora de inicio y fin, un color, notas opcionales y los días en que se repite, o una sola fecha. La vista de día muestra tus actividades como tarjetas, con la actual resaltada y una barra de progreso; la vista de semana muestra hasta siete días con una línea de la hora actual. En la vista de semana, haz clic en un espacio libre para añadir una actividad ahí; haz clic en cualquier tarjeta para editarla.
+>
+> Reduce Dayglance a un mini widget que muestra solo la actividad actual o la siguiente, fíjalo sobre las demás ventanas u ocúltalo en la bandeja del sistema. Los avisos aparecen como pequeñas tarjetas con tu tema y un sonido suave opcional, a la hora de inicio y, si quieres, minutos, horas o días antes.
+>
+> Hazlo tuyo con seis temas incluidos o con los tuyos, creados a partir de cuatro colores con sugerencias de contraste legible. Elige formato de 12 o 24 horas, tres estilos de tarjeta y cuatro tamaños de texto. Dayglance está en español e inglés.
+>
+> Tu horario se queda en tu PC. Sin cuenta, sin anuncios, sin analítica y sin conexión a internet. Exporta tu horario a un archivo como respaldo o para compartirlo, e impórtalo en otro equipo.
+>
+> Los avisos funcionan mientras Dayglance esté abierto, incluso desde la bandeja. Para tenerlo listo cada día, activa el inicio automático en Configuración de Windows → Aplicaciones → Inicio. Al desinstalar Dayglance se borra el horario guardado, así que exporta un respaldo antes si quieres conservarlo.
+
+**Descripción breve**
+
+> Tu día de un vistazo: un widget de horario con avisos suaves, temas y vista reducida. Gratis, privado, sin cuenta.
+
+**Novedades de esta versión**
+
+> Primera versión en Microsoft Store.
+
+**Características del producto**
+
+- Vista de día con la actividad actual resaltada y su progreso
+- Vista de semana de tres a siete días con la hora actual
+- Mini widget con lo que está pasando ahora o lo que sigue
+- Actividades que se repiten o de una sola vez, con colores y notas
+- Avisos a la hora de inicio y un aviso adicional anticipado
+- Seis temas y tus propios temas personalizados
+- Español e inglés, formato de 12 o 24 horas
+- Exporta e importa tu horario como archivo
+- Sin cuenta, sin anuncios, sin analítica; tu horario se queda en tu PC
+
+**Términos de búsqueda:** horario, rutina, agenda, planificador, recordatorios, widget, organizador
+
+**Copyright:** © 2026 Acidminded
+
+**Textos de las capturas:**
+1. "Tu semana de un vistazo, con la hora actual"
+2. "Vista de día y mini widget"
+3. "Añade actividades con colores, repeticiones y avisos"
+4. "Seis temas, o crea el tuyo"
+
+The screenshots show the English interface. A Spanish set can be rendered later by switching the app to Español before running `--screenshots`.
 
 ### Submission options
 
