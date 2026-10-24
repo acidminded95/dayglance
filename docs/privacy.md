@@ -30,4 +30,4 @@ Dayglance does not collect personal information from anyone, including children.
 
 ## Changes and contact
 
-If this policy changes, the new version is posted on this page with a new date. Questions: open an issue at <https://github.com/acidminded95/dayglance/issues>.
+If this policy changes, the new version is posted on this page with a new date. Questions: email <david@acidminded.com> or open an issue at <https://github.com/acidminded95/dayglance/issues>.

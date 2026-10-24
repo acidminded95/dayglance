@@ -61,7 +61,7 @@ Check: Start menu tile and taskbar icon, launch, add an activity, quit from the 
 - Category: Productivity (no subcategory)
 - Privacy policy URL: TODO (where `docs/privacy.md` is published)
 - Website: https://github.com/acidminded95/dayglance
-- Support contact info: TODO (email from Dav)
+- Support contact info: david@acidminded.com (switch to support@acidminded.com in a later submission once that address exists)
 - Product declarations: defaults; leave the accessibility box unticked unless tested with a screen reader and keyboard only
 - System requirements: minimum memory 4 GB
 - Generative AI: No
