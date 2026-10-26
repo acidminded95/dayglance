@@ -59,9 +59,9 @@ Check: Start menu tile and taskbar icon, launch, add an activity, quit from the 
 ### Properties
 
 - Category: Productivity (no subcategory)
-- Privacy policy URL: on acidminded.com (TODO: exact URL once published; source text is `docs/privacy.md`)
+- Privacy policy URL: https://acidminded.com/dayglance/privacy (Spanish version at https://acidminded.com/dayglance/privacidad; text in `docs/privacy.md` and `docs/privacidad.md`). Partner Center takes one URL; the English page links to the Spanish one.
 - Website: https://github.com/acidminded95/dayglance
-- Support contact info: david@acidminded.com (switch to support@acidminded.com in a later submission once that address exists)
+- Support contact info: support@acidminded.com
 - Product declarations: defaults; leave the accessibility box unticked unless tested with a screen reader and keyboard only
 - System requirements: minimum memory 4 GB
 - Generative AI: No

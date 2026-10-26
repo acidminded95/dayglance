@@ -4,7 +4,9 @@ title: Dayglance privacy policy
 
 # Dayglance privacy policy
 
-Last updated: October 24, 2026
+[Leer en español](https://acidminded.com/dayglance/privacidad)
+
+Last updated: October 26, 2026
 
 Dayglance is a schedule widget for Windows made by Acidminded. This policy covers the Microsoft Store version and the version downloaded from GitHub.
 
@@ -30,4 +32,4 @@ Dayglance does not collect personal information from anyone, including children.
 
 ## Changes and contact
 
-If this policy changes, the new version is posted on this page with a new date. Questions: email <david@acidminded.com> or open an issue at <https://github.com/acidminded95/dayglance/issues>.
+If this policy changes, the new version is posted on this page with a new date. Questions: email <support@acidminded.com> or open an issue at <https://github.com/acidminded95/dayglance/issues>.
