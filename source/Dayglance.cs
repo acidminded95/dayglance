@@ -148,7 +148,9 @@ namespace Dayglance {
     tray=new Forms.NotifyIcon { Text="Dayglance — your day at a glance",Icon=BrandIcon.Make(),Visible=true }; tray.DoubleClick+=(s,e)=>Restore(); var menu=new Forms.ContextMenuStrip(); menu.Items.Add("Open Dayglance",null,(s,e)=>Restore()); menu.Items.Add("Add activity",null,(s,e)=> { Restore(); Edit(null); }); menu.Items.Add("Quit",null,(s,e)=> { exiting=true; Close(); }); tray.ContextMenuStrip=menu; tray.BalloonTipClicked+=(s,e)=>Restore();
     Closing+=(s,e)=> { PersistPosition(); if(!exiting) { e.Cancel=true; Hide(); } }; Closed+=(s,e)=> { timer.Stop(); tray.Dispose(); };
     timer=new DispatcherTimer { Interval=TimeSpan.FromSeconds(10) }; timer.Tick+=(s,e)=> { Refresh(false); Notify(); }; timer.Start();
+#if !STORE
     var updateTimer=new DispatcherTimer { Interval=TimeSpan.FromSeconds(30) }; updateTimer.Tick+=(s,e)=> { updateTimer.Interval=TimeSpan.FromHours(6); CheckForUpdates(false,null); }; updateTimer.Start();
+#endif
    }
    UI.EnableBorderResize(this); EnableLightDismiss(); EnableHistoryInput(); SetSize(); Refresh(true); UpdateTrayLanguage(); SizeChanged+=(s,e)=> { RememberSize(); QueueGeometrySave(); if(State.WeekView && weekPanel!=null) RenderWeek(); }; LocationChanged+=(s,e)=> { RememberSize(); QueueGeometrySave(); };
   }

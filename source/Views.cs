@@ -485,6 +485,7 @@ namespace Dayglance {
    var dot=new Ellipse { Width=8,Height=8,Fill=UI.Accent }; Canvas.SetLeft(dot,column-4); Canvas.SetTop(dot,lineY-4); Panel.SetZIndex(dot,6); canvas.Children.Add(dot);
    return new Border { Child=canvas,CornerRadius=new CornerRadius(10),BorderBrush=UI.Line,BorderThickness=new Thickness(1),Margin=new Thickness(0,8,0,4),HorizontalAlignment=HorizontalAlignment.Left,ClipToBounds=true };
   }
+#if !STORE
   bool checkingUpdates; string announcedUpdate;
   // Background GitHub check. Automatic checks (every few hours, if enabled) announce a newer release once per session with a small card.
   void CheckForUpdates(bool manual,Action<UpdateInfo,Exception> done) {
@@ -516,6 +517,7 @@ namespace Dayglance {
     }));
    });
   }
+#endif
   bool settingsOpen;
   // Settings preview their theme and language on the dialog itself; the main widget only changes after saving.
   void Settings() {
@@ -590,7 +592,13 @@ namespace Dayglance {
      p.Children.Add(UI.Label(UI.Language=="es"?"Los avisos propios de Dayglance usan tu tema y un sonido suave. Funcionan mientras la app esté abierta; se cierran tras 18 segundos. × oculta el widget en la bandeja.":"Dayglance reminders use your theme and a soft chime. They work while the app is running and dismiss after 18 seconds. × hides the widget in the tray.",12,UI.Muted));
      var test=UI.Button("Test reminder",()=>new ReminderToast(UI.T("Notification preview"),UI.T("Your reminder will look like this."),Restore,sound)); test.HorizontalAlignment=HorizontalAlignment.Left; p.Children.Add(test);
      p.Children.Add(section("STARTUP"));
+#if STORE
+     // Packaged apps start at sign-in through the manifest's startup task, which the user turns on in Windows Settings.
+     p.Children.Add(UI.Label(UI.T("To open Dayglance when you sign in, turn it on in Windows Settings → Apps → Startup."),12,UI.Muted));
+     var startupButton=UI.Button("Open startup settings",()=> { try { Process.Start("ms-settings:startupapps"); } catch {} }); startupButton.HorizontalAlignment=HorizontalAlignment.Left; p.Children.Add(startupButton);
+#else
      var startupSwitch=UI.Switch("Start when I sign in to Windows",startup); startupSwitch.Checked+=(s,e)=>startup=true; startupSwitch.Unchecked+=(s,e)=>startup=false; p.Children.Add(startupSwitch);
+#endif
     }
     else {
      var backup=section("BACKUP & SHARING"); ((FrameworkElement)backup).Margin=new Thickness(0,8,0,6); p.Children.Add(backup);
@@ -607,6 +615,10 @@ namespace Dayglance {
      })); p.Children.Add(row);
      p.Children.Add(section("UPDATES"));
      p.Children.Add(UI.Label((UI.Language=="es"?"Versión instalada: ":"Installed version: ")+AppInfo.Version,13,UI.Text));
+#if STORE
+     p.Children.Add(UI.Label(UI.T("Updates arrive through the Microsoft Store."),12,UI.Muted));
+     p.Children.Add(section("STAYS ON THIS PC")); p.Children.Add(UI.Label(Storage.FilePath+"\n"+UI.T("No account, subscriptions or analytics. Dayglance makes no network requests; your schedule stays on this PC."),12,UI.Muted));
+#else
      var autoSwitch=UI.Switch("Check for updates automatically",autoUpdate); autoSwitch.Checked+=(s,e)=>autoUpdate=true; autoSwitch.Unchecked+=(s,e)=>autoUpdate=false; p.Children.Add(autoSwitch);
      var updateStatus=UI.Label("",12,UI.Muted); var updateActions=new WrapPanel();
      Button checkButton=null; checkButton=UI.Button("Check now",()=> {
@@ -622,11 +634,12 @@ namespace Dayglance {
      });
      checkButton.HorizontalAlignment=HorizontalAlignment.Left; checkButton.Margin=new Thickness(0,0,0,6); p.Children.Add(checkButton); p.Children.Add(updateStatus); p.Children.Add(updateActions);
      p.Children.Add(section("STAYS ON THIS PC")); p.Children.Add(UI.Label(Storage.FilePath+"\n"+UI.T("No account, subscriptions or analytics. The only network request is the optional update check on GitHub; your schedule stays on this PC."),12,UI.Muted));
+#endif
     }
     var hint=UI.Label(UI.Language=="es"?"Los cambios se muestran en esta ventana y se aplican al widget al guardar.":"Changes preview in this window and apply to the widget when you save.",11,UI.Muted); hint.Margin=new Thickness(0,0,0,10); hint.TextAlignment=TextAlignment.Center;
     var saveButton=UI.Button("Save preferences",()=> {
      try {
-      if(!preview) {
+      if(!preview && !AppInfo.Store) {
        if(startup) { Type t=Type.GetTypeFromProgID("WScript.Shell"); dynamic shell=Activator.CreateInstance(t); dynamic shortcut=shell.CreateShortcut(StartupPath); shortcut.TargetPath=System.Reflection.Assembly.GetExecutingAssembly().Location; shortcut.WorkingDirectory=AppDomain.CurrentDomain.BaseDirectory; shortcut.Description="Dayglance"; shortcut.Save(); System.Runtime.InteropServices.Marshal.FinalReleaseComObject(shortcut); System.Runtime.InteropServices.Marshal.FinalReleaseComObject(shell); }
        else if(File.Exists(StartupPath)) File.Delete(StartupPath);
       }

@@ -1,0 +1,52 @@
+name: Store package
+
+# Builds the unsigned Microsoft Store MSIX (source/Package-Store.ps1), runs its self-test and keeps the package as a
+# workflow artifact. Uploading it to Partner Center stays a manual step.
+on:
+  pull_request:
+    paths: ['source/**', 'store/**', '.github/workflows/store.yml']
+  workflow_dispatch:
+
+jobs:
+  msix:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build regular app, self-test and UI test
+        shell: powershell
+        run: |
+          ./source/Build.ps1 -OutputDirectory build/regular
+          Start-Process -FilePath build/regular/Dayglance.exe -ArgumentList '--self-test' -Wait
+          $result = Get-Content build/regular/test-results.txt -Raw
+          Write-Output $result
+          if (-not $result.StartsWith('PASS')) { exit 1 }
+          Start-Process -FilePath build/regular/Dayglance.exe -ArgumentList '--ui-test' -Wait
+          $ui = Get-Content build/regular/ui-test-results.txt -Raw
+          Write-Output $ui
+          if (-not $ui.StartsWith('PASS')) { exit 1 }
+
+      - name: Build Store package
+        id: package
+        shell: powershell
+        run: |
+          $msix = ./source/Package-Store.ps1 -OutputDirectory dist/store | Select-Object -Last 1
+          "msix=$msix" >> $env:GITHUB_OUTPUT
+
+      - name: Self-test and UI-test Store build
+        shell: powershell
+        run: |
+          $folder = Get-ChildItem dist/store -Directory | Select-Object -First 1
+          Start-Process -FilePath "$($folder.FullName)/Dayglance.exe" -ArgumentList '--self-test' -Wait
+          $result = Get-Content "$($folder.FullName)/test-results.txt" -Raw
+          Write-Output $result
+          if (-not $result.StartsWith('PASS')) { exit 1 }
+          Start-Process -FilePath "$($folder.FullName)/Dayglance.exe" -ArgumentList '--ui-test' -Wait
+          $ui = Get-Content "$($folder.FullName)/ui-test-results.txt" -Raw
+          Write-Output $ui
+          if (-not $ui.StartsWith('PASS')) { exit 1 }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dayglance-store-msix
+          path: ${{ steps.package.outputs.msix }}
