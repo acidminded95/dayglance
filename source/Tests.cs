@@ -125,6 +125,10 @@ namespace Dayglance {
     var day=load("midnight"); day.CardStyle="band"; var w1=open(day,520,860); shoot(w1,"day-view.png");
     app.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle,new Action(()=> { var dialog=app.Windows.Cast<Window>().First(x=>x!=w1); dialog.UpdateLayout(); shoot(dialog,"settings.png"); dialog.Close(); })); Click(w1,"Settings");
     app.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle,new Action(()=> { var dialog=app.Windows.Cast<Window>().First(x=>x!=w1); dialog.UpdateLayout(); shoot(dialog,"activity-editor.png"); dialog.Close(); })); Click(w1,"Add activity");
+    app.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle,new Action(()=> {
+     var tour=app.Windows.Cast<Window>().First(x=>x!=w1); tour.UpdateLayout(); shoot(tour,"welcome-tour.png");
+     Click(tour,"Add my first activity"); tour.UpdateLayout(); Descendants<TextBox>(tour).First().Text="Morning walk"; Click(tour,"Next"); Click(tour,"Weekdays"); tour.UpdateLayout(); shoot(tour,"welcome-tour-when.png"); tour.Close();
+    })); w1.Welcome();
     w1.Close();
 
     var week=load("midnight"); week.WeekView=true; week.WeekHighlight="glow"; var w2=open(week,1280,860); w2.ScrollWeekToHour(6.5); w2.UpdateLayout(); shoot(w2,"week-view.png"); w2.Close();

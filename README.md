@@ -117,7 +117,7 @@ Each successful save retains the previous file as `schedule.json.bak`. If data i
 - `Dayglance.exe --ui-test`: controls, editor, welcome tour, themes and theme creator, Spanish, window sizing, mini widget, narrow week scrolling, backup and notifications.
 - `Dayglance.exe --showcase <schedule.json>`: rendering checks across all six themes, with screenshots beside the executable.
 - `Dayglance.exe --first-run`: opens the app with a throwaway empty schedule to try the welcome tour; your real schedule isn't touched.
-- `Dayglance.exe --screenshots docs\sample-schedule.json docs\screenshots`: regenerates the README screenshots from the sample schedule at a fixed date and time (run from the repository root).
+- `Dayglance.exe --screenshots docs\sample-schedule.json docs\screenshots`: regenerates the README screenshots (plus `welcome-tour.png` and `welcome-tour-when.png` from the welcome tour) from the sample schedule at a fixed date and time (run from the repository root).
 
 Results go to `test-results.txt`, `ui-test-results.txt` and `showcase-results.txt`; tests use isolated data folders.
 
