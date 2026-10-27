@@ -14,7 +14,7 @@ Dayglance es un widget de horario para Windows creado por Acidminded. Esta polí
 
 Dayglance guarda tus actividades, notas, historial de avisos y de actividades completadas, temas personalizados y preferencias en un archivo en tu PC:
 
-- Versión de Microsoft Store: dentro de la carpeta de datos propia de la app, `%LOCALAPPDATA%\Packages\<paquete de Dayglance>\`. Windows borra esta carpeta al desinstalar Dayglance.
+- Versión de Microsoft Store: dentro de la carpeta de datos propia de la app, `%LOCALAPPDATA%\Packages\<paquete de Dayglance>\`, que Windows borra al desinstalar Dayglance. Si antes se usó la versión de GitHub en el mismo equipo, la versión de Store abre y conserva ese horario existente en `%LOCALAPPDATA%\Dayglance`, y desinstalarla no lo borra.
 - Versión de GitHub: `%LOCALAPPDATA%\Dayglance`.
 
 Estos datos nunca salen de tu PC, a menos que decidas exportarlos con **Ajustes → Datos y actualizaciones → Exportar…**; en ese caso van solo al archivo que elijas.

@@ -14,7 +14,7 @@ Dayglance is a schedule widget for Windows made by Acidminded. This policy cover
 
 Dayglance saves your activities, notes, reminder and completion history, custom themes and preferences in a file on your PC:
 
-- Microsoft Store version: inside the app's own data folder, `%LOCALAPPDATA%\Packages\<Dayglance package>\`. Windows deletes this folder when you uninstall Dayglance.
+- Microsoft Store version: inside the app's own data folder, `%LOCALAPPDATA%\Packages\<Dayglance package>\`, which Windows deletes when you uninstall Dayglance. If the GitHub version was used on the same PC before, the Store version opens and keeps that existing schedule in `%LOCALAPPDATA%\Dayglance` instead, and uninstalling leaves it in place.
 - GitHub version: `%LOCALAPPDATA%\Dayglance`.
 
 This data never leaves your PC unless you choose to export it with **Settings → Data & updates → Export…**, in which case it goes only to the file you pick.

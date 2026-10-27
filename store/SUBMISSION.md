@@ -27,7 +27,7 @@ What the Store build (`Build.ps1 -Store`) changes:
 
 - No self-updater: `Updates.cs`, the update timer and the update settings are compiled out. The Store build makes no network requests.
 - Start at sign-in uses the manifest's `windows.startupTask` (off by default). Settings → Reminders shows a button that opens Windows Settings → Apps → Startup instead of the old Startup-folder shortcut.
-- Data stays in `%LOCALAPPDATA%\Dayglance` as before; Windows redirects it to `%LOCALAPPDATA%\Packages\<package family name>\LocalCache\Local\Dayglance` and deletes it on uninstall.
+- Data stays in `%LOCALAPPDATA%\Dayglance` as before. On a PC without the ZIP version, Windows redirects it to `%LOCALAPPDATA%\Packages\<package family name>\LocalCache\Local\Dayglance` and deletes it on uninstall. If `%LOCALAPPDATA%\Dayglance` already exists (ZIP version used before), the Store build reads and writes that real folder, so both versions share one schedule.
 
 ## 3. Install locally and run WACK
 
@@ -43,7 +43,7 @@ signtool sign /fd SHA256 /f dayglance-test.pfx /p local-test Dayglance-local.msi
 Add-AppxPackage .\Dayglance-local.msix
 ```
 
-If you already run the ZIP version, quit it from the tray first (both use the same single-instance lock, and the ZIP version's data is not shared with the Store version).
+If you already run the ZIP version, quit it from the tray first (both use the same single-instance lock, and the Store build will open the same schedule). To see the first-run experience, rename `%LOCALAPPDATA%\Dayglance` while testing; afterwards reset the Store app (Settings → Apps → Dayglance → Advanced options → Reset) and rename it back.
 
 Check: Start menu tile and taskbar icon, launch, add an activity, quit from the tray, relaunch (activity still there), Test reminder, Settings → Data & updates says updates come through the Store, Settings → Reminders → Open startup settings shows Dayglance (turn it on, sign out and in). Then **Windows App Cert Kit → Validate Store App → Dayglance** and fix every failure. Upload the unsigned `Dayglance-2.1.1.0.msix`. `*.pfx` is git-ignored; never commit it.
 
@@ -196,7 +196,7 @@ The screenshots show the English interface. A Spanish set would need a small cha
 | Listing assets rejected or resized? |  |  |  |  |
 | Certification time and report |  |  |  |  |
 | Private audience: how a tester gets in (link, sign-in, Store app) |  |  |  |  |
-| Install size, install time, data folder, uninstall |  |  |  |  |
+| Install size, install time, data folder, uninstall | Store build opened the existing ZIP-version schedule: MSIX only redirects *new* AppData files; existing `%LOCALAPPDATA%\Dayglance` is shared. |  | Documented; privacy page says so. Rename the folder to test first run. | Yes: an Electron app with an existing non-Store install will see its old `%APPDATA%` data too. |
 | Update submission: time to reach testers |  |  |  |  |
 | Emails or messages from Microsoft |  |  |  |  |
 | Packaging a csc-only WPF app | No Visual Studio project, so the MSIX is a hand-written manifest + `makepri` + `makeappx` (`source/Package-Store.ps1`). | 1 session | Electron gets this from electron-builder's `appx` target instead. | Partly: the identity, tiles, startupTask and runFullTrust text carry over. |
