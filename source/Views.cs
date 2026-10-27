@@ -95,6 +95,7 @@ namespace Dayglance {
     eyebrow.Children.Add(new TextBlock { Text=UI.T(running?"RIGHT NOW":"UP NEXT"),FontSize=9,Foreground=UI.Accent,VerticalAlignment=VerticalAlignment.Center }); body.Children.Add(eyebrow);
     body.Children.Add(new TextBlock { Text=o.Activity.Title,FontSize=17,FontWeight=FontWeights.SemiBold,Foreground=UI.Text,TextTrimming=TextTrimming.CharacterEllipsis,Margin=new Thickness(0,2,54,0) });
     string detail=running?UI.Clock(o.Start)+" – "+UI.Clock(o.End)+"  ·  "+Math.Ceiling((o.End-now).TotalMinutes)+UI.T(" min left"):(o.Start.Date==now.Date?"":o.Start.ToString("ddd ",UI.Culture))+UI.Clock(o.Start)+" – "+UI.Clock(o.End);
+    detail+=ChecklistProgress(o);
     body.Children.Add(new TextBlock { Text=detail,FontSize=11,Foreground=UI.Muted,TextTrimming=TextTrimming.CharacterEllipsis });
     if(running) body.Children.Add(new ProgressBar { Minimum=0,Maximum=100,Value=(now-o.Start).TotalSeconds/(o.End-o.Start).TotalSeconds*100,Height=3,Foreground=UI.B(o.Activity.Color),Background=UI.Line,BorderThickness=new Thickness(0),Margin=new Thickness(0,6,0,0) });
    } else {
@@ -243,9 +244,9 @@ namespace Dayglance {
     var o=block.Occurrence; bool done=State.Completed.Contains(o.Key),current=o.Start<=now&&o.End>now;
     double laneWidth=(column-4)/block.Lanes, height=Math.Max(5,(block.EndHour-block.StartHour)*rowHeight-2);
     var text=new StackPanel(); var title=UI.Label((done?"✓ ":"")+o.Activity.Title,block.Lanes>1?9:11,UI.Ink(o.Activity.Color)); title.Margin=new Thickness(0); title.FontWeight=FontWeights.SemiBold; title.MaxHeight=height<37?height-2:Math.Max(15,height-20); title.TextTrimming=TextTrimming.CharacterEllipsis; text.Children.Add(title);
-    if(height>=39) { var time=UI.Label(UI.Clock(o.Start)+"–"+UI.Clock(o.End),9,UI.Ink(o.Activity.Color)); time.Margin=new Thickness(0); text.Children.Add(time); }
+    if(height>=39) { var time=UI.Label(UI.Clock(o.Start)+"–"+UI.Clock(o.End)+ChecklistProgress(o),9,UI.Ink(o.Activity.Color)); time.Margin=new Thickness(0); text.Children.Add(time); }
     var card=new Border { Child=text,Width=Math.Max(8,laneWidth-2),Height=height,Padding=new Thickness(4,height<25?1:3,3,1),Background=UI.B(o.Activity.Color),CornerRadius=new CornerRadius(5),BorderBrush=current?UI.Text:UI.B(o.Activity.Color),BorderThickness=new Thickness(current?2:0),Opacity=done?0.58:0.95,ClipToBounds=true,Cursor=Cursors.Hand };
-    card.ToolTip=o.Activity.Title+"\n"+o.Start.ToString("ddd ",UI.Culture)+UI.Clock(o.Start)+"–"+o.End.ToString("ddd ",UI.Culture)+UI.Clock(o.End)+(string.IsNullOrWhiteSpace(o.Activity.Notes)?"":"\n"+o.Activity.Notes)+"\n"+UI.T("Edit activity");
+    card.ToolTip=o.Activity.Title+"\n"+o.Start.ToString("ddd ",UI.Culture)+UI.Clock(o.Start)+"–"+o.End.ToString("ddd ",UI.Culture)+UI.Clock(o.End)+(string.IsNullOrWhiteSpace(o.Activity.Notes)?"":"\n"+o.Activity.Notes)+string.Concat(o.Activity.Checklist.Select(i=>"\n"+(State.Checked.Contains(o.ItemKey(i))?"✓ ":"○ ")+i.Text))+"\n"+UI.T("Edit activity");
     card.MouseLeftButtonUp+=(s,e)=> { e.Handled=true; Edit(o.Activity); }; double cardLeft=d*column+3+block.Lane*laneWidth,cardTop=block.StartHour*rowHeight+1;
     if(current && !done) {
      // Accent ring drawn just outside the card so it never covers the title. In "line" mode it stays invisible until a Right now pulse.
@@ -339,6 +340,7 @@ namespace Dayglance {
    if(o.End.Date>o.Start.Date) when+=UI.T(" (+1 day)"); if(current) when+=(when.Length>0?"  • ":"• ")+UI.T("NOW");
    when=when.Trim(); if(when.Length>0) { var whenLabel=UI.Label(when,11,subBrush); if(full) whenLabel.Opacity=.85; info.Children.Add(whenLabel); }
    if(!string.IsNullOrWhiteSpace(o.Activity.Notes)) { var notes=UI.Label(o.Activity.Notes,12,subBrush); if(full) notes.Opacity=.85; info.Children.Add(notes); }
+   if(o.Activity.Checklist.Count>0) info.Children.Add(ChecklistPanel(o,full?ink:titleBrush,full?ink:UI.Accent,full?color:UI.AccentInk,interactive));
    if(info.Children.Count>0) ((FrameworkElement)info.Children[info.Children.Count-1]).Margin=new Thickness(0);
    Grid.SetColumn(info,1); row.Children.Add(info);
    var toggle=UI.Button(done?"✓":"○",()=> { if(!interactive) return; if(State.Completed.Contains(o.Key)) State.Completed.Remove(o.Key); else State.Completed.Add(o.Key); Save(); Refresh(true); });
@@ -350,6 +352,18 @@ namespace Dayglance {
    if(interactive) { box.MouseLeftButtonDown+=(s,e)=> { if(e.ClickCount==2) Edit(o.Activity); }; box.ToolTip=UI.T("Double-click to edit"); }
    return box;
   }
+  // Tickable sub-items on a day card. A tick belongs to this occurrence only, so a repeating activity starts each time with a fresh list.
+  FrameworkElement ChecklistPanel(Occurrence o,Brush text,Brush mark,Brush tickInk,bool interactive) {
+   var panel=new StackPanel { Margin=new Thickness(0,2,0,6) };
+   foreach(var item in o.Activity.Checklist) {
+    var entry=item; var tick=UI.Tick(item.Text,State.Checked.Contains(o.ItemKey(item)),text,mark,tickInk);
+    if(interactive) tick.Click+=(s,e)=> { Schedule.ToggleItem(State,o,entry); if(!Save()) Schedule.ToggleItem(State,o,entry); Refresh(true); }; else tick.IsHitTestVisible=false;
+    panel.Children.Add(tick);
+   }
+   return panel;
+  }
+  // "  ·  ✓ 2/5" after an activity's time, when it has a checklist.
+  string ChecklistProgress(Occurrence o) { int total=o.Activity.Checklist.Count; return total==0?"":"  ·  ✓ "+Schedule.CheckedCount(State,o)+"/"+total; }
   // Scrolls the day list so the activity is the first visible card, or the second when the previous and next cards also fit.
   void FocusActivity(string key) { FocusActivity(key,false); }
   void FocusActivity(string key,bool pulse) {
