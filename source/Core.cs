@@ -7,8 +7,13 @@ using System.Text;
 using System.Web.Script.Serialization;
 
 namespace Dayglance {
+ // One sub-item of an activity's checklist. Ticks are stored per occurrence in State.Checked, so a repeating activity starts each time unticked.
+ public class ChecklistItem {
+  public string Id { get; set; }
+  public string Text { get; set; }
+ }
  public class Activity {
-  public Activity() { ExtraReminders=new List<int>(); }
+  public Activity() { ExtraReminders=new List<int>(); Checklist=new List<ChecklistItem>(); }
   public string Id { get; set; }
   public string Title { get; set; }
   public string Notes { get; set; }
@@ -19,12 +24,15 @@ namespace Dayglance {
   public string Date { get; set; }
   public int Reminder { get; set; }
   public List<int> ExtraReminders { get; set; }
+  public List<ChecklistItem> Checklist { get; set; }
  }
  public class State {
   public int Version { get; set; }
   public List<Activity> Activities { get; set; }
   public List<string> Completed { get; set; }
   public List<string> Reminded { get; set; }
+  List<string> isChecked;
+  public List<string> Checked { get { return isChecked??(isChecked=new List<string>()); } set { isChecked=value; } } // ticked checklist items, as Occurrence.ItemKey
   public bool Notifications { get; set; }
   public bool Sound { get; set; }
   public bool Pinned { get; set; }
@@ -52,6 +60,7 @@ namespace Dayglance {
   public Activity Activity;
   public DateTime Start, End;
   public string Key { get { return Activity.Id+"@"+Start.ToString("yyyy-MM-dd",CultureInfo.InvariantCulture); } }
+  public string ItemKey(ChecklistItem item) { return Key+"#"+item.Id; }
  }
  // Single source of "now" for the UI, so screenshots and demos can render a fixed moment.
  public static class AppClock {
@@ -60,6 +69,7 @@ namespace Dayglance {
   public static DateTime Today { get { return Now.Date; } }
  }
  public static class Schedule {
+  public const int MaxChecklist=30;
   public static TimeSpan Time(string s) { TimeSpan value; if(!TimeSpan.TryParseExact(s,"hh\\:mm",CultureInfo.InvariantCulture,out value)) throw new Exception("Use HH:MM, between 00:00 and 23:59."); return value; }
   public static List<Occurrence> ForDay(State state, DateTime day) {
    var result=new List<Occurrence>(); day=day.Date;
@@ -91,7 +101,11 @@ namespace Dayglance {
     if(a.ExtraReminders==null) a.ExtraReminders=new List<int>();
     if(a.ExtraReminders.Count>1 || a.ExtraReminders.Any(n=>n<1||n>43200)) throw new Exception("Use one additional reminder, between 1 minute and 30 days.");
     if(a.Color==null || !System.Text.RegularExpressions.Regex.IsMatch(a.Color,"^#[0-9A-Fa-f]{6}$")) throw new Exception("Invalid activity color.");
+    if(a.Checklist==null) a.Checklist=new List<ChecklistItem>();
+    var itemIds=new HashSet<string>();
+    if(a.Checklist.Count>MaxChecklist || a.Checklist.Any(i=>i==null || string.IsNullOrWhiteSpace(i.Id) || i.Id.Length>40 || !itemIds.Add(i.Id) || string.IsNullOrWhiteSpace(i.Text) || i.Text.Length>200)) throw new Exception("A checklist can have up to 30 items, each with 1–200 characters.");
    }
+   if(s.Checked.Any(k=>string.IsNullOrEmpty(k) || k.Length>200)) throw new Exception("This is not a supported Dayglance backup.");
    if(s.Completed==null) s.Completed=new List<string>(); if(s.Reminded==null) s.Reminded=new List<string>();
    if(s.CustomThemes==null) s.CustomThemes=new List<Theme>();
    if(s.CustomThemes.Count>24) throw new Exception("Up to 24 custom themes are supported.");
@@ -126,6 +140,8 @@ namespace Dayglance {
    foreach(var a in state.Activities) if(a.Reminder>0) { if(a.ExtraReminders==null) a.ExtraReminders=new List<int>(); if(a.ExtraReminders.Count==0) a.ExtraReminders.Add(a.Reminder); a.Reminder=0; changed=true; }
    return changed;
   }
+  public static void ToggleItem(State state,Occurrence o,ChecklistItem item) { string key=o.ItemKey(item); if(!state.Checked.Remove(key)) state.Checked.Add(key); }
+  public static int CheckedCount(State state,Occurrence o) { return o.Activity.Checklist==null?0:o.Activity.Checklist.Count(i=>state.Checked.Contains(o.ItemKey(i))); }
   public static DateTime WeekStart(DateTime date) { return date.Date.AddDays(-(int)date.DayOfWeek); }
   public class Block { public Occurrence Occurrence; public double StartHour,EndHour; public int Lane,Lanes; }
   public static List<Block> Layout(State state,DateTime day) {
