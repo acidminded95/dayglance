@@ -33,7 +33,7 @@ namespace Dayglance {
     Check(Schedule.WeekStart(new DateTime(2027,1,1))==new DateTime(2026,12,27),"week crosses year boundary");
     a.Start="22:00"; a.End="05:00"; a.Date=null; a.Days=new[]{0,1,2,3,4,5,6}; var pieces=Schedule.Layout(s,monday); Check(pieces.Count==2 && pieces[0].StartHour==0 && pieces[0].EndHour==5 && pieces[1].StartHour==22 && pieces[1].EndHour==24,"overnight splits at week day boundaries");
     s.Activities.Add(new Activity { Id="overlap",Title="Overlap",Color="#FFAA88",Start="23:00",End="23:30",Days=new[]{1},Reminder=-1 }); var lanes=Schedule.Layout(s,monday).Where(b=>b.StartHour>=22).ToList(); Check(lanes.Count==2 && lanes[0].Lanes==2 && lanes[1].Lanes==2 && lanes[0].Lane!=lanes[1].Lane,"overlapping events get separate lanes");
-    var legacy=Storage.Serializer().Deserialize<State>("{\"Version\":1,\"Activities\":[]}"); Schedule.Validate(legacy); Check(legacy.Theme=="midnight" && legacy.Language=="en" && !legacy.WeekView,"version one backup migration");
+    var legacy=Storage.Serializer().Deserialize<State>("{\"Version\":1,\"Activities\":[]}"); Schedule.Validate(legacy); Check(legacy.Theme=="midnight" && legacy.Language=="en" && !legacy.WeekView,"version one backup migration"); Check(!legacy.Onboarded,"older data has not seen the welcome tour");
     s.Theme="terracotta"; s.Language="es"; s.WeekView=true; Storage.Save(s); round=Storage.Read(Storage.FilePath); Check(round.Theme=="terracotta" && round.Language=="es" && round.WeekView,"new preferences persist");
     var advanced=new State(); advanced.Activities.Add(new Activity { Id="advance",Title="Exam",Start="12:00",End="13:00",Days=new[]{2},Color="#AACCAA",Reminder=0,ExtraReminders=new List<int>{1440} });
     Check(Schedule.Reminders(advanced,monday.AddHours(12)).Count==1 && Schedule.Reminders(advanced,monday.AddHours(12))[0].Advance,"one-day advance reminder");
@@ -93,6 +93,14 @@ namespace Dayglance {
     })); Click(w,"Ajustes"); Check(w.State.Theme.StartsWith("custom-") && w.State.CustomThemes.Count==1,"custom theme created and applied");
     using(var icon=BrandIcon.Make()) Check(icon.Width==32,"themed tray icon renders"); var toast=new ReminderToast(UI.T("Notification preview"),UI.T("Your reminder will look like this."),()=>{},false); toast.UpdateLayout(); Capture(toast,"notification-preview"); Check(toast.AllowsTransparency && toast.WindowStyle==WindowStyle.None,"themed notification has no native frame"); toast.Close();
     var incoming=new State(); incoming.Activities.Add(new Activity { Id="imported",Title="Prueba",Start="12:00",End="13:00",Days=new[]{1},Color="#AABBCC",Reminder=-1 }); w.ImportState(incoming); Check(w.State.Activities.Single().Title=="Prueba" && w.State.Theme.StartsWith("custom-") && w.State.Language=="es","import preserves local design preferences"); Check(Directory.GetFiles(Storage.Folder,"before-import-*.json").Length==1,"import creates safety backup");
+    // Welcome tour (Spanish at this point): name, weekly days, reminder, then the tips page.
+    int before=w.State.Activities.Count; w.State.Onboarded=false;
+    app.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle,new Action(()=> {
+     var tour=app.Windows.Cast<Window>().First(x=>x!=w); Capture(tour,"welcome-preview"); Click(tour,"Añadir mi primera actividad");
+     Click(tour,"Siguiente"); Check(w.State.Activities.Count==before,"tour requires a name"); tour.UpdateLayout(); Descendants<TextBox>(tour).First().Text="Leer";
+     Click(tour,"Siguiente"); Click(tour,"Lun–Vie"); Click(tour,"Siguiente"); Capture(tour,"welcome-reminder-preview"); Click(tour,"Añadir a mi día"); Capture(tour,"welcome-tips-preview"); Click(tour,"Entendido");
+    })); w.Welcome();
+    var toured=w.State.Activities.Last(); Check(w.State.Activities.Count==before+1 && toured.Title=="Leer" && toured.Days.Length==5 && toured.Reminder==0 && w.State.Onboarded,"welcome tour adds a weekday activity and marks the tour seen"); Check(Storage.Read(Storage.FilePath).Onboarded,"tour state persists");
     w.Close(); File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"ui-test-results.txt"),"PASS: "+count+" UI checks; editor, settings, manage, and compact screenshots rendered.");
    } catch(Exception ex) { File.WriteAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"ui-test-results.txt"),ex.ToString()); Environment.ExitCode=1; }
    app.Shutdown();
