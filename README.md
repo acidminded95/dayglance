@@ -35,6 +35,12 @@ Requires Windows 10/11 with .NET Framework 4.8. No installer or administrator ri
 - Manual update: quit from the tray icon (**Quit / Salir**), extract the new ZIP over the old folder and run it again.
 - If sign-in startup was enabled and you moved the app folder, save preferences once so the shortcut points to the new location.
 
+## First launch
+
+On a first launch with an empty schedule, a short **welcome tour** walks through adding one activity: its name (or one of a few ideas), its times, whether it repeats every week or happens once, and whether to get a reminder. It ends with a few tips about the widget. **Skip for now**, ×, or Esc close it; it doesn't open by itself again. Replay it any time from **Settings → Help**.
+
+To see the first-launch experience on a PC that already has a schedule, run `Dayglance.exe --first-run` (your normal copy can stay open). It uses a throwaway empty schedule in `%TEMP%\Dayglance-first-run` (reset on every `--first-run` launch) and never touches `%LOCALAPPDATA%\Dayglance`.
+
 ## Views and controls
 
 - The title bar holds **add**, **manage**, **settings**, **pin**, minimize and hide-to-tray. Hover for labels. Drag the title bar to move the widget; double-click it to switch to the mini widget.
@@ -108,9 +114,10 @@ Each successful save retains the previous file as `schedule.json.bak`. If data i
 `source/Build.ps1` compiles every `.cs` file in `source` with the Windows .NET Framework compiler (no NuGet packages). `-OutputDirectory` writes the build elsewhere; by default it goes to `source\Dayglance.exe`. `MakeIcon.ps1` regenerates the icon.
 
 - `Dayglance.exe --self-test`: schedule, reminder, validation, palette, clock format, release-version and persistence checks.
-- `Dayglance.exe --ui-test`: controls, editor, themes and theme creator, Spanish, window sizing, mini widget, narrow week scrolling, backup and notifications.
+- `Dayglance.exe --ui-test`: controls, editor, welcome tour, themes and theme creator, Spanish, window sizing, mini widget, narrow week scrolling, backup and notifications.
 - `Dayglance.exe --showcase <schedule.json>`: rendering checks across all six themes, with screenshots beside the executable.
-- `Dayglance.exe --screenshots docs\sample-schedule.json docs\screenshots`: regenerates the README screenshots from the sample schedule at a fixed date and time (run from the repository root).
+- `Dayglance.exe --first-run`: opens the app with a throwaway empty schedule to try the welcome tour; your real schedule isn't touched.
+- `Dayglance.exe --screenshots docs\sample-schedule.json docs\screenshots`: regenerates the README screenshots (plus `welcome-tour.png` and `welcome-tour-when.png` from the welcome tour) from the sample schedule at a fixed date and time (run from the repository root).
 
 Results go to `test-results.txt`, `ui-test-results.txt` and `showcase-results.txt`; tests use isolated data folders.
 
