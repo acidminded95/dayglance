@@ -188,7 +188,7 @@ The screenshots show the English interface. A Spanish set would need a small cha
 | Area | What happened | Time it took | Fix | Applies to the next app? |
 | --- | --- | --- | --- | --- |
 | Name reservation and identity paste |  |  |  |  |
-| MSIX build errors | Local test signing: `signtool` said "This file format cannot be signed because it is not recognized" for .msix and .appx (SDK 10.0.28000, Windows 26H2, only Signing Tools + WACK installed). Its folder had `appxsip.dll` but not `appxpackaging.dll` / `opcservices.dll`. | ~20 min | Install the SDK's UWP Managed and UWP C++ features too. (Pending confirmation.) | Yes: any local MSIX signing needs the full packaging tools. |
+| MSIX build errors | Local test signing: `signtool` said "This file format cannot be signed because it is not recognized" for .msix and .appx (SDK 10.0.28000, Windows 26H2, only Signing Tools + WACK installed). Its folder had `appxsip.dll` but not `appxpackaging.dll` / `opcservices.dll`. | ~20 min | Installing the SDK's UWP Managed and UWP C++ features fixed it; signing and Add-AppxPackage then worked with no restart. | Yes: any local MSIX signing needs the full packaging tools. |
 | WACK results |  |  |  |  |
 | runFullTrust: extra questions or delay? |  |  |  |  |
 | Privacy policy accepted as written? |  |  |  |  |
