@@ -150,6 +150,7 @@ namespace Dayglance {
     Tuple.Create("",L("Add more activities with the + button at the top.","Añade más actividades con el botón + de arriba.")),
     Tuple.Create("",L("Tap ○ on a card when you finish it. Double-click a card to edit it.","Pulsa ○ en una tarjeta al terminarla. Haz doble clic en ella para editarla.")),
     Tuple.Create("",L("Manage lists your whole routine, ready to edit or delete.","Gestionar muestra toda tu rutina para editarla o eliminarla.")),
+    Tuple.Create("",L("Add a checklist to an activity and tick items right on its card. Repeating activities start fresh each time.","Añade una lista de tareas a una actividad y marca los elementos en su tarjeta. Las actividades que se repiten empiezan sin marcar.")),
     Tuple.Create("",L("Week shows all seven days. Click an empty slot there to add something.","Semana muestra los siete días. Haz clic en un espacio libre para añadir algo.")),
     Tuple.Create("",L("The mini widget keeps only what’s happening now. Double-click the title bar to switch.","El mini widget muestra solo lo que pasa ahora. Haz doble clic en la barra superior para cambiar.")),
     Tuple.Create("",L("× hides Dayglance in the tray so reminders keep working. Right-click the tray icon to quit.","× oculta Dayglance en la bandeja para que los avisos sigan funcionando. Haz clic derecho en su icono para salir.")),
