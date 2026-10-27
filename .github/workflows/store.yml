@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build regular app and self-test
+      - name: Build regular app, self-test and UI test
         shell: powershell
         run: |
           ./source/Build.ps1 -OutputDirectory build/regular
@@ -21,6 +21,10 @@ jobs:
           $result = Get-Content build/regular/test-results.txt -Raw
           Write-Output $result
           if (-not $result.StartsWith('PASS')) { exit 1 }
+          Start-Process -FilePath build/regular/Dayglance.exe -ArgumentList '--ui-test' -Wait
+          $ui = Get-Content build/regular/ui-test-results.txt -Raw
+          Write-Output $ui
+          if (-not $ui.StartsWith('PASS')) { exit 1 }
 
       - name: Build Store package
         id: package
@@ -29,7 +33,7 @@ jobs:
           $msix = ./source/Package-Store.ps1 -OutputDirectory dist/store | Select-Object -Last 1
           "msix=$msix" >> $env:GITHUB_OUTPUT
 
-      - name: Self-test Store build
+      - name: Self-test and UI-test Store build
         shell: powershell
         run: |
           $folder = Get-ChildItem dist/store -Directory | Select-Object -First 1
@@ -37,6 +41,10 @@ jobs:
           $result = Get-Content "$($folder.FullName)/test-results.txt" -Raw
           Write-Output $result
           if (-not $result.StartsWith('PASS')) { exit 1 }
+          Start-Process -FilePath "$($folder.FullName)/Dayglance.exe" -ArgumentList '--ui-test' -Wait
+          $ui = Get-Content "$($folder.FullName)/ui-test-results.txt" -Raw
+          Write-Output $ui
+          if (-not $ui.StartsWith('PASS')) { exit 1 }
 
       - uses: actions/upload-artifact@v4
         with:
