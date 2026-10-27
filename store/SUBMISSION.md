@@ -14,7 +14,7 @@ Partner Center → Dayglance → Product management → **Product identity**. Co
 
 ## 2. Build the package
 
-Needs the Windows 10/11 SDK (it brings `makeappx.exe`, `makepri.exe`, `signtool.exe` and the App Certification Kit).
+Needs the Windows 10/11 SDK with these features: **Windows App Certification Kit**, **Windows SDK Signing Tools for Desktop Apps**, **Windows SDK for UWP Managed Apps** and **Windows SDK for UWP C++ Apps**. Signing Tools alone gives a `signtool` that cannot sign MSIX ("This file format cannot be signed because it is not recognized"), because `appxpackaging.dll` and `opcservices.dll` come with the UWP features.
 
 ```powershell
 .\source\Package-Store.ps1
@@ -188,7 +188,7 @@ The screenshots show the English interface. A Spanish set would need a small cha
 | Area | What happened | Time it took | Fix | Applies to the next app? |
 | --- | --- | --- | --- | --- |
 | Name reservation and identity paste |  |  |  |  |
-| MSIX build errors |  |  |  |  |
+| MSIX build errors | Local test signing: `signtool` said "This file format cannot be signed because it is not recognized" for .msix and .appx (SDK 10.0.28000, Windows 26H2, only Signing Tools + WACK installed). Its folder had `appxsip.dll` but not `appxpackaging.dll` / `opcservices.dll`. | ~20 min | Install the SDK's UWP Managed and UWP C++ features too. (Pending confirmation.) | Yes: any local MSIX signing needs the full packaging tools. |
 | WACK results |  |  |  |  |
 | runFullTrust: extra questions or delay? |  |  |  |  |
 | Privacy policy accepted as written? |  |  |  |  |
