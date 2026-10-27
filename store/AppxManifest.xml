@@ -8,7 +8,7 @@
   xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
   IgnorableNamespaces="uap desktop rescap">
-  <Identity Name="Acidminded.Dayglance" Publisher="CN=00000000-0000-0000-0000-000000000000" Version="$(Version)" ProcessorArchitecture="x64" />
+  <Identity Name="Acidminded.Dayglance" Publisher="CN=FD4B3F58-7FC4-48B4-ABAF-E0A05B0FB110" Version="$(Version)" ProcessorArchitecture="x64" />
   <Properties>
     <DisplayName>Dayglance</DisplayName>
     <PublisherDisplayName>Acidminded</PublisherDisplayName>

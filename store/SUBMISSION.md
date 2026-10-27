@@ -8,8 +8,8 @@ Partner Center → Dayglance → Product management → **Product identity**. Co
 
 | Partner Center | Manifest |
 | --- | --- |
-| Package/Identity/Name | `<Identity Name="...">` (placeholder `Acidminded.Dayglance`) |
-| Package/Identity/Publisher | `<Identity Publisher="CN=...">` (placeholder `CN=00000000-...`) |
+| Package/Identity/Name | `Acidminded.Dayglance` |
+| Package/Identity/Publisher | `CN=FD4B3F58-7FC4-48B4-ABAF-E0A05B0FB110` |
 | Package/Identity/PublisherDisplayName | `<PublisherDisplayName>` (`Acidminded`) |
 
 ## 2. Build the package
@@ -34,7 +34,7 @@ What the Store build (`Build.ps1 -Store`) changes:
 An MSIX installs only when signed. Sign a **copy** with a throwaway certificate whose subject equals the manifest Publisher (PowerShell as admin, from `dist\store`):
 
 ```powershell
-$cert = New-SelfSignedCertificate -Type Custom -Subject "CN=<publisher GUID>" -KeyUsage DigitalSignature -FriendlyName "Dayglance local test" -CertStoreLocation "Cert:\CurrentUser\My" -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
+$cert = New-SelfSignedCertificate -Type Custom -Subject "CN=FD4B3F58-7FC4-48B4-ABAF-E0A05B0FB110" -KeyUsage DigitalSignature -FriendlyName "Dayglance local test" -CertStoreLocation "Cert:\CurrentUser\My" -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
 $pw = ConvertTo-SecureString -String "local-test" -Force -AsPlainText
 Export-PfxCertificate -Cert $cert -FilePath dayglance-test.pfx -Password $pw
 Import-PfxCertificate -FilePath dayglance-test.pfx -CertStoreLocation Cert:\LocalMachine\TrustedPeople -Password $pw
