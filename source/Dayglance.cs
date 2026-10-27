@@ -225,7 +225,7 @@ namespace Dayglance {
    if(settingsOpen && !force) return;
    DateTime now=AppClock.Now; if(selected==lastToday) selected=now.Date; lastToday=now.Date; clockLabel.Text=now.ToString("ddd d MMM",UI.Culture)+"  ·  "+UI.Clock(now).ToUpperInvariant();
    var today=Schedule.ForDay(State,now.Date); var active=today.Where(o=>o.Start<=now && o.End>now && !State.Completed.Contains(o.Key)).ToList();
-   var entries=Schedule.ForDay(State,selected); var sig=selected.ToString("O")+now.ToString("yyyyMMddHHmm")+State.Completed.Count+State.Activities.Count;
+   var entries=Schedule.ForDay(State,selected); var sig=selected.ToString("O")+now.ToString("yyyyMMddHHmm")+State.Completed.Count+State.Activities.Count+"/"+State.Checked.Count;
    if(!force && signature==sig) return; signature=sig;
    string currentKey=active.Count>0?active[0].Key:""; bool activityChanged=!preview && lastCurrentKey!=null && currentKey!=lastCurrentKey; lastCurrentKey=currentKey;
    pin.Content="\uE718"; pin.Foreground=State.Pinned?UI.Accent:UI.Muted; pin.FontWeight=State.Pinned?FontWeights.Bold:FontWeights.Normal; pin.ToolTip=UI.T(State.Pinned?"● Pinned on top":"Pin on top"); compact.Content=State.Compact?"\uE740":"\uE73F"; compact.ToolTip=UI.T(State.Compact?"Expand":"Mini widget");
@@ -233,7 +233,7 @@ namespace Dayglance {
    dayLabel.Text=State.WeekView?Schedule.WeekStart(selected).ToString("d MMM",UI.Culture)+" – "+Schedule.WeekStart(selected).AddDays(6).ToString("d MMM yyyy",UI.Culture):selected==now.Date?UI.T("Today"):selected.ToString("ddd, d MMM",UI.Culture);
    hero.Children.Clear(); var hp=new StackPanel(); hp.Children.Add(UI.Label(active.Count>0?"RIGHT NOW" : "ROOM TO BREATHE",10,UI.Accent));
    if(active.Count>0) {
-    var current=active[0]; hp.Children.Add(UI.Label(current.Activity.Title,24,UI.Text)); hp.Children.Add(UI.Label(UI.Clock(current.Start)+" – "+UI.Clock(current.End)+"  ·  "+Math.Ceiling((current.End-now).TotalMinutes)+UI.T(" min left"),12,UI.Muted));
+    var current=active[0]; hp.Children.Add(UI.Label(current.Activity.Title,24,UI.Text)); hp.Children.Add(UI.Label(UI.Clock(current.Start)+" – "+UI.Clock(current.End)+"  ·  "+Math.Ceiling((current.End-now).TotalMinutes)+UI.T(" min left")+ChecklistProgress(current),12,UI.Muted));
     var bar=new ProgressBar { Minimum=0,Maximum=100,Value=(now-current.Start).TotalSeconds/(current.End-current.Start).TotalSeconds*100,Height=4,Foreground=UI.B(current.Activity.Color),Background=UI.Line,BorderThickness=new Thickness(0),Margin=new Thickness(0,6,0,8) }; hp.Children.Add(bar);
     if(active.Count>1) hp.Children.Add(UI.Label(UI.T("Also now: ")+string.Join(", ",active.Skip(1).Select(o=>o.Activity.Title)),11,UI.Muted));
    } else {
@@ -273,7 +273,7 @@ namespace Dayglance {
     string title=due.Count==1?due[0].Occurrence.Activity.Title:UI.T("Activities coming up");
     Func<Occurrence,string> span=o=>(o.Start.Date==AppClock.Today?"":o.Start.ToString("ddd d MMM",UI.Culture)+"  ·  ")+UI.Clock(o.Start)+" – "+UI.Clock(o.End);
     var single=due[0].Occurrence;
-    string detail=due.Count==1?span(single)+(string.IsNullOrWhiteSpace(single.Activity.Notes)?"":"\n"+single.Activity.Notes.Trim()):string.Join("\n",due.Take(4).Select(r=>r.Occurrence.Activity.Title+"  ·  "+span(r.Occurrence)));
+    string detail=due.Count==1?span(single)+(string.IsNullOrWhiteSpace(single.Activity.Notes)?"":"\n"+single.Activity.Notes.Trim())+string.Concat(single.Activity.Checklist.Where(i=>!State.Checked.Contains(single.ItemKey(i))).Take(4).Select(i=>"\n○ "+i.Text)):string.Join("\n",due.Take(4).Select(r=>r.Occurrence.Activity.Title+"  ·  "+span(r.Occurrence)));
     new ReminderToast(title,detail,Restore,State.Sound);
    } catch(Exception ex) { Debug.WriteLine(ex); }
   }
@@ -307,6 +307,18 @@ namespace Dayglance {
    var beforeLabel=UI.Label("before",13,UI.Muted); beforeLabel.Margin=new Thickness(0,10,0,8); advance.Children.Add(beforeLabel); panel.Children.Add(advance);
    Action toggleAdvance=()=> { advance.Visibility=extra.IsChecked==true?Visibility.Visible:Visibility.Collapsed; }; extra.Checked+=(s,e)=>toggleAdvance(); extra.Unchecked+=(s,e)=>toggleAdvance(); toggleAdvance();
    panel.Children.Add(UI.Label("NOTES (OPTIONAL)",11,UI.Muted)); var notes=UI.Input(activity==null?"":activity.Notes); notes.Height=65; notes.AcceptsReturn=true; notes.TextWrapping=TextWrapping.Wrap; notes.MaxLength=2000; panel.Children.Add(notes);
+   // Checklist: one row per item. Existing items keep their ids, so a tick stays with an item whose text is edited.
+   panel.Children.Add(UI.Label("CHECKLIST (OPTIONAL)",11,UI.Muted)); var itemRows=new StackPanel(); panel.Children.Add(itemRows);
+   var items=new List<KeyValuePair<string,TextBox>>(); Button addItem=null; Action<string,string,bool> addRow=null;
+   addRow=(id,text,focus)=> {
+    var row=new DockPanel { Margin=new Thickness(0,0,0,6) }; var box=UI.Input(text); box.MaxLength=200; box.Margin=new Thickness(0); var entry=new KeyValuePair<string,TextBox>(id,box);
+    var remove=UI.Icon("\uE711","Remove item",()=> { items.Remove(entry); itemRows.Children.Remove(row); addItem.IsEnabled=true; }); remove.FontSize=11; DockPanel.SetDock(remove,Dock.Right); row.Children.Add(remove); row.Children.Add(box);
+    box.PreviewKeyDown+=(s,e)=> { if(e.Key==Key.Enter && items.Count<Schedule.MaxChecklist) { e.Handled=true; addRow(null,"",true); } };
+    items.Add(entry); itemRows.Children.Add(row); addItem.IsEnabled=items.Count<Schedule.MaxChecklist; if(focus) box.Focus();
+   };
+   addItem=UI.Button("Add item",()=>addRow(null,"",true)); addItem.HorizontalAlignment=HorizontalAlignment.Left;
+   if(activity!=null) foreach(var item in activity.Checklist) addRow(item.Id,item.Text,false);
+   panel.Children.Add(addItem); var itemsHint=UI.Label("Ticks reset each time a repeating activity comes around.",11,UI.Muted); itemsHint.Margin=new Thickness(0,6,0,12); panel.Children.Add(itemsHint);
    var error=UI.Label("",12,UI.B("#FF9E94")); panel.Children.Add(error); var buttons=UI.Row(); buttons.Children.Add(UI.Button("Save activity",()=> {
     try {
      int extraValue=0;
@@ -314,7 +326,8 @@ namespace Dayglance {
       int dd,hh,mm; if(!int.TryParse(leadDays.Text.Trim()==""?"0":leadDays.Text,out dd)||!int.TryParse(leadHours.Text.Trim()==""?"0":leadHours.Text,out hh)||!int.TryParse(leadMinutes.Text.Trim()==""?"0":leadMinutes.Text,out mm)||dd<0||hh<0||mm<0) throw new Exception("Use whole numbers for days, hours and minutes.");
       extraValue=dd*1440+hh*60+mm; if(extraValue<1||extraValue>43200) throw new Exception("Use one additional reminder, between 1 minute and 30 days.");
      }
-     var a=new Activity { Id=activity==null?Guid.NewGuid().ToString("N"):activity.Id,Title=title.Text.Trim(),Start=start.Value,End=end.Value,Days=order.Where((d,i)=>checks[i].IsChecked==true).ToArray(),Date=date.SelectedDate.HasValue?date.SelectedDate.Value.ToString("yyyy-MM-dd",CultureInfo.InvariantCulture):"",Color=color,Notes=notes.Text.Trim(),Reminder=reminder.IsChecked==true?0:-1,ExtraReminders=extra.IsChecked==true?new List<int> { extraValue }:new List<int>() };
+     var a=new Activity { Id=activity==null?Guid.NewGuid().ToString("N"):activity.Id,Title=title.Text.Trim(),Start=start.Value,End=end.Value,Days=order.Where((d,i)=>checks[i].IsChecked==true).ToArray(),Date=date.SelectedDate.HasValue?date.SelectedDate.Value.ToString("yyyy-MM-dd",CultureInfo.InvariantCulture):"",Color=color,Notes=notes.Text.Trim(),Reminder=reminder.IsChecked==true?0:-1,ExtraReminders=extra.IsChecked==true?new List<int> { extraValue }:new List<int>(),
+      Checklist=items.Where(i=>i.Value.Text.Trim()!="").Select(i=>new ChecklistItem { Id=i.Key??Guid.NewGuid().ToString("N"),Text=i.Value.Text.Trim() }).ToList() };
      var test=new State(); test.Activities.Add(a); Schedule.Validate(test);
      var old=State.Activities.ToList(); if(activity!=null) State.Activities.Remove(activity); State.Activities.Add(a);
      if(!Save()) { State.Activities=old; return; } w.Close(); Refresh(true);
