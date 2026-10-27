@@ -80,7 +80,7 @@ Upload `Dayglance-2.1.1.0.msix`. Device family: Windows 10/11 Desktop only.
 
 > Dayglance is a small schedule widget that keeps your day in view: what you're doing now, what comes next, and gentle reminders before each activity starts.
 >
-> Plan a routine once and let it repeat. Each activity has a start and end time, a color, optional notes and the days it repeats on, or a single date. The day view lists your activities as cards with the current one highlighted and a progress bar; the week view lays out up to seven days with a live time line. In the week view, click an empty slot to add an activity there; click any card to edit it.
+> Plan a routine once and let it repeat. Each activity has a start and end time, a color, optional notes and the days it repeats on, or a single date. Add a checklist to any activity and tick items off right on its card; for repeating activities the checklist starts fresh each time. On first launch, a short welcome tour helps you add your first weekly or one-time activity. The day view lists your activities as cards with the current one highlighted and a progress bar; the week view lays out up to seven days with a live time line. In the week view, click an empty slot to add an activity there; click any card to edit it.
 >
 > Shrink Dayglance to a mini widget that shows only the current or next activity, pin it on top of other windows, or hide it in the system tray. Reminders appear as small themed cards with an optional soft chime, at the start time and, if you like, minutes, hours or days ahead.
 >
@@ -104,6 +104,8 @@ Upload `Dayglance-2.1.1.0.msix`. Device family: Windows 10/11 Desktop only.
 - Week view of three to seven days with a live time line
 - Mini widget that shows what's on now or next
 - Repeating or one-time activities with colors and notes
+- Checklists inside activities, ticked off right on the card
+- A short welcome tour that sets up your first activity
 - Reminders at the start time and an optional earlier reminder
 - Six themes plus your own custom themes
 - English and Spanish, 12- or 24-hour time
@@ -130,7 +132,7 @@ Uses the same screenshots and logos as the English listing.
 
 > Dayglance es un pequeño widget de horario que mantiene tu día a la vista: lo que estás haciendo ahora, lo que sigue y avisos suaves antes de que empiece cada actividad.
 >
-> Planea tu rutina una vez y deja que se repita. Cada actividad tiene hora de inicio y fin, un color, notas opcionales y los días en que se repite, o una sola fecha. La vista de día muestra tus actividades como tarjetas, con la actual resaltada y una barra de progreso; la vista de semana muestra hasta siete días con una línea de la hora actual. En la vista de semana, haz clic en un espacio libre para añadir una actividad ahí; haz clic en cualquier tarjeta para editarla.
+> Planea tu rutina una vez y deja que se repita. Cada actividad tiene hora de inicio y fin, un color, notas opcionales y los días en que se repite, o una sola fecha. Añade una lista de pendientes a cualquier actividad y márcalos directamente en su tarjeta; en las actividades que se repiten, la lista empieza de nuevo cada vez. La primera vez que abres la app, un breve recorrido de bienvenida te ayuda a crear tu primera actividad semanal o de una sola vez. La vista de día muestra tus actividades como tarjetas, con la actual resaltada y una barra de progreso; la vista de semana muestra hasta siete días con una línea de la hora actual. En la vista de semana, haz clic en un espacio libre para añadir una actividad ahí; haz clic en cualquier tarjeta para editarla.
 >
 > Reduce Dayglance a un mini widget que muestra solo la actividad actual o la siguiente, fíjalo sobre las demás ventanas u ocúltalo en la bandeja del sistema. Los avisos aparecen como pequeñas tarjetas con tu tema y un sonido suave opcional, a la hora de inicio y, si quieres, minutos, horas o días antes.
 >
@@ -154,6 +156,8 @@ Uses the same screenshots and logos as the English listing.
 - Vista de semana de tres a siete días con la hora actual
 - Mini widget con lo que está pasando ahora o lo que sigue
 - Actividades que se repiten o de una sola vez, con colores y notas
+- Listas de pendientes dentro de las actividades, que se marcan en la tarjeta
+- Un breve recorrido de bienvenida para crear tu primera actividad
 - Avisos a la hora de inicio y un aviso adicional anticipado
 - Seis temas y tus propios temas personalizados
 - Español e inglés, formato de 12 o 24 horas
@@ -181,7 +185,7 @@ The screenshots show the English interface. A Spanish set would need a small cha
 
 - **Notes for certification:**
 
-> No account or sign-in is needed, and the app makes no network requests. On first launch Dayglance opens a small widget window. To try it in two minutes: click + in the title bar, enter a title, set a start time a minute or two from now, keep "Remind me when it starts" on and Save. The activity appears in the day view, and a small reminder card appears in the bottom-right corner at the start time. Day / Week switches views; the expand/shrink button switches to the mini widget. Settings (gear icon) → Reminders → Test reminder shows a reminder immediately. Closing the window with × hides Dayglance in the system tray (it keeps running so reminders work); right-click the tray icon → Quit to exit. Start-at-sign-in is an optional startup task, off by default, which the user turns on in Windows Settings → Apps → Startup.
+> No account or sign-in is needed, and the app makes no network requests. On first launch Dayglance opens a small widget window with a short welcome tour that walks through adding a first activity (weekly or one-time); it can be skipped, and restarted from Settings → Help. To try it in two minutes: follow the tour, or click + in the title bar, enter a title, set a start time a minute or two from now, keep "Remind me when it starts" on and Save. Optionally add checklist items in the editor and tick them on the card. The activity appears in the day view, and a small reminder card appears in the bottom-right corner at the start time. Day / Week switches views; the expand/shrink button switches to the mini widget. Settings (gear icon) → Reminders → Test reminder shows a reminder immediately. Closing the window with × hides Dayglance in the system tray (it keeps running so reminders work); right-click the tray icon → Quit to exit. Start-at-sign-in is an optional startup task, off by default, which the user turns on in Windows Settings → Apps → Startup.
 
 ## 5. Lessons log
 
