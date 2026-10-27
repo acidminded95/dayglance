@@ -7,20 +7,26 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: write # only needed to publish the release
 
 jobs:
   release:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      # Pinned to a commit so a moved tag can't change what runs with write access.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
 
       - name: Read version
         id: version
         shell: pwsh
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
           $version = (Select-String -Path source/Version.cs -Pattern 'Version="([0-9.]+)"').Matches[0].Groups[1].Value
-          if ('${{ github.ref_type }}' -eq 'tag' -and "v$version" -ne '${{ github.ref_name }}') { throw "Tag ${{ github.ref_name }} does not match Version.cs ($version)" }
+          if ($env:REF_TYPE -eq 'tag' -and "v$version" -ne $env:REF_NAME) { throw "Tag $env:REF_NAME does not match Version.cs ($version)" }
           "version=$version" >> $env:GITHUB_OUTPUT
 
       - name: Build and package
@@ -36,9 +42,13 @@ jobs:
           Write-Output $result
           if (-not $result.StartsWith('PASS')) { exit 1 }
 
+      # Uses the GitHub CLI that ships on the runner instead of a third-party action.
       - name: Publish release
         if: github.ref_type == 'tag'
-        uses: softprops/action-gh-release@v2
-        with:
-          files: dist/Dayglance-${{ steps.version.outputs.version }}.zip
-          generate_release_notes: true
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          REF_NAME: ${{ github.ref_name }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: gh release create $env:REF_NAME "dist/Dayglance-$env:VERSION.zip" --verify-tag --generate-notes

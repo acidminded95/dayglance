@@ -27,16 +27,19 @@ namespace Dayglance {
     var data=new JavaScriptSerializer().DeserializeObject(client.DownloadString("https://api.github.com/repos/"+AppInfo.Repository+"/releases/latest")) as Dictionary<string,object>;
     if(data==null) throw new Exception("Unexpected response from GitHub.");
     var info=new UpdateInfo { Tag=Value(data,"tag_name"),Notes=Value(data,"body"),PageUrl=Value(data,"html_url") }; info.Version=ParseTag(info.Tag);
+    if(!FromRepository(info.PageUrl,"/releases/")) info.PageUrl=""; // the page is opened with Process.Start, so it must stay a GitHub link
     object assets; if(data.TryGetValue("assets",out assets) && assets is IEnumerable)
      foreach(var item in (IEnumerable)assets) { var asset=item as Dictionary<string,object>; if(asset==null) continue; string name=Value(asset,"name");
-      if(name.StartsWith("Dayglance",StringComparison.OrdinalIgnoreCase) && name.EndsWith(".zip",StringComparison.OrdinalIgnoreCase)) { info.DownloadUrl=Value(asset,"browser_download_url"); break; } }
+      if(name.StartsWith("Dayglance",StringComparison.OrdinalIgnoreCase) && name.EndsWith(".zip",StringComparison.OrdinalIgnoreCase)) { info.DownloadUrl=Value(asset,"browser_download_url"); if(!FromRepository(info.DownloadUrl,"/releases/download/")) info.DownloadUrl=null; break; } }
     return info;
    }
   }
+  // Only accept https links to this repository's own releases, never another host or repository.
+  static bool FromRepository(string url,string path) { return !string.IsNullOrEmpty(url) && url.StartsWith("https://github.com/"+AppInfo.Repository+path,StringComparison.OrdinalIgnoreCase) && url.IndexOf("..",StringComparison.Ordinal)<0; }
   static string Value(Dictionary<string,object> data,string key) { object value; return data.TryGetValue(key,out value) && value!=null?Convert.ToString(value):""; }
   // Downloads and unpacks the release, then starts the helper script. The caller must exit the app right after.
   public static void Install(UpdateInfo info) {
-   if(string.IsNullOrEmpty(info.DownloadUrl)) throw new Exception("This release has no Dayglance ZIP to install.");
+   if(string.IsNullOrEmpty(info.DownloadUrl) || !FromRepository(info.DownloadUrl,"/releases/download/")) throw new Exception("This release has no Dayglance ZIP to install.");
    string work=Path.Combine(Path.GetTempPath(),"Dayglance-update-"+Guid.NewGuid().ToString("N")); Directory.CreateDirectory(work);
    string zip=Path.Combine(work,"update.zip"); using(var client=Client()) client.DownloadFile(info.DownloadUrl,zip);
    string files=Path.Combine(work,"files"); System.IO.Compression.ZipFile.ExtractToDirectory(zip,files);
