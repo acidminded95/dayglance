@@ -518,7 +518,7 @@ namespace Dayglance {
    render=()=> {
     double y=scroller.VerticalOffset; p.Children.Clear();
     // Tabs keep each group short: look & language, schedule display, reminders & startup, data.
-    var tabs=UI.Row(); string[] keys={"appearance","reminders","data"}; string[] names={"Appearance","Reminders","Data & updates"};
+    var tabs=UI.Row(); string[] keys={"appearance","reminders","data","help"}; string[] names={"Appearance","Reminders","Data & updates",L("Help","Ayuda")};
     for(int i=0;i<keys.Length;i++) { string key=keys[i]; var b=UI.Button(names[i],()=> { if(tab==key) return; tab=key; render(); scroller.ScrollToVerticalOffset(0); },tab==key); b.Margin=new Thickness(0); b.MinHeight=30; if(tab!=key) b.Background=Brushes.Transparent; tabs.Children.Add(b); }
     tabBar.Child=new Border { Child=tabs,Background=UI.Card,CornerRadius=new CornerRadius(10),Padding=new Thickness(3),HorizontalAlignment=HorizontalAlignment.Left };
     if(tab=="appearance") {
@@ -561,6 +561,12 @@ namespace Dayglance {
      var sample=DayCard(new Occurrence { Activity=sampleActivity,Start=AppClock.Today.AddHours(9),End=AppClock.Today.AddHours(10.5) },AppClock.Today.AddHours(9.5),cardStyle,false); sample.Margin=new Thickness(0,0,0,4); p.Children.Add(sample);
      p.Children.Add(section("CURRENT ACTIVITY IN WEEK VIEW"));
      string[] highlights={"line","outline","glow"}; var highlightChoice=new Choice(); highlightChoice.Items.AddRange(new[]{"Time line and dot","Accent outline","Accent outline with glow"}); highlightChoice.SelectedIndex=Math.Max(0,Array.IndexOf(highlights,weekHighlight)); highlightChoice.Changed+=()=> { weekHighlight=highlights[highlightChoice.SelectedIndex]; render(); }; p.Children.Add(highlightChoice); p.Children.Add(WeekHighlightPreview(weekHighlight));
+    }
+    else if(tab=="help") {
+     var tourTitle=section(L("WELCOME TOUR","RECORRIDO DE BIENVENIDA")); ((FrameworkElement)tourTitle).Margin=new Thickness(0,8,0,6); p.Children.Add(tourTitle);
+     p.Children.Add(UI.Label(L("Add an activity step by step, then see a few tips about the widget.","Añade una actividad paso a paso y conoce algunos consejos sobre el widget."),12,UI.Muted));
+     var tour=UI.Button(L("Start the tour","Iniciar el recorrido"),()=> { w.Close(); Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ApplicationIdle,new Action(Welcome)); }); tour.HorizontalAlignment=HorizontalAlignment.Left; p.Children.Add(tour);
+     p.Children.Add(section(L("QUICK TIPS","CONSEJOS RÁPIDOS"))); p.Children.Add(WelcomeTips());
     }
     else if(tab=="reminders") {
      var remindersTitle=section("REMINDERS"); ((FrameworkElement)remindersTitle).Margin=new Thickness(0,8,0,6); p.Children.Add(remindersTitle);
@@ -626,7 +632,7 @@ namespace Dayglance {
   public void ImportState(State incoming) {
    Schedule.Validate(incoming); Directory.CreateDirectory(Storage.Folder);
    File.WriteAllText(System.IO.Path.Combine(Storage.Folder,"before-import-"+AppClock.Now.ToString("yyyyMMdd-HHmmssfff")+".json"),Storage.Serializer().Serialize(State));
-   incoming.Pinned=State.Pinned; incoming.Compact=State.Compact; incoming.Left=State.Left; incoming.Top=State.Top; incoming.MiniLeft=State.MiniLeft; incoming.MiniTop=State.MiniTop; incoming.MiniWidth=State.MiniWidth; incoming.MiniHeight=State.MiniHeight; incoming.UiScale=State.UiScale; incoming.TimeFormat=State.TimeFormat; incoming.AutoUpdateCheck=State.AutoUpdateCheck; incoming.Notifications=State.Notifications; incoming.Sound=State.Sound; incoming.Theme=State.Theme; incoming.Language=State.Language; incoming.WeekView=State.WeekView; incoming.CardStyle=State.CardStyle; incoming.WindowWidth=State.WindowWidth; incoming.WindowHeight=State.WindowHeight; incoming.WeekHighlight=State.WeekHighlight; incoming.CustomThemes=State.CustomThemes.Concat(incoming.CustomThemes).GroupBy(t=>t.Id).Select(g=>g.First()).ToList();
+   incoming.Pinned=State.Pinned; incoming.Compact=State.Compact; incoming.Left=State.Left; incoming.Top=State.Top; incoming.MiniLeft=State.MiniLeft; incoming.MiniTop=State.MiniTop; incoming.MiniWidth=State.MiniWidth; incoming.MiniHeight=State.MiniHeight; incoming.UiScale=State.UiScale; incoming.TimeFormat=State.TimeFormat; incoming.AutoUpdateCheck=State.AutoUpdateCheck; incoming.Notifications=State.Notifications; incoming.Sound=State.Sound; incoming.Theme=State.Theme; incoming.Language=State.Language; incoming.WeekView=State.WeekView; incoming.CardStyle=State.CardStyle; incoming.WindowWidth=State.WindowWidth; incoming.WindowHeight=State.WindowHeight; incoming.WeekHighlight=State.WeekHighlight; incoming.Onboarded=State.Onboarded||incoming.Onboarded; incoming.CustomThemes=State.CustomThemes.Concat(incoming.CustomThemes).GroupBy(t=>t.Id).Select(g=>g.First()).ToList();
    var previous=State; State=incoming; try { Storage.Save(State); } catch { State=previous; throw; }
   }
  }

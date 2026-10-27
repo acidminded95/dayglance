@@ -46,6 +46,7 @@ namespace Dayglance {
   public string TimeFormat { get; set; }
   public bool AutoUpdateCheck { get; set; }
   public string WeekHighlight { get; set; }
+  public bool Onboarded { get; set; } // the welcome tour was finished or skipped
   public State() { Version=1; Activities=new List<Activity>(); Completed=new List<string>(); Reminded=new List<string>(); CustomThemes=new List<Theme>(); Notifications=true; Pinned=true; Left=80; Top=80; Theme="midnight"; Language="en"; CardStyle="stripe"; WeekHighlight="line"; UiScale=1; TimeFormat="24"; AutoUpdateCheck=true; }
  }
  public class Occurrence {

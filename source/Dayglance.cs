@@ -339,7 +339,10 @@ namespace Dayglance {
    if(args.Contains("--showcase")) { Tests.Showcase(args.Last()); return; }
    if(args.Contains("--screenshots")) { int at=Array.IndexOf(args,"--screenshots"); Tests.Screenshots(args.Length>at+1?args[at+1]:"docs\\sample-schedule.json",args.Length>at+2?args[at+2]:"docs\\screenshots"); return; }
    if(args.Contains("--preview")) { Preview(args.Last()); return; }
-   bool created; using(var mutex=new Mutex(true,"Local\\Dayglance.Desktop.1",out created)) {
+   // --first-run opens a throwaway empty schedule (in %TEMP%) to try the first-launch experience; the real schedule is never touched.
+   bool firstRun=args.Contains("--first-run");
+   if(firstRun) { Storage.Folder=Path.Combine(Path.GetTempPath(),"Dayglance-first-run"); try { if(Directory.Exists(Storage.Folder)) Directory.Delete(Storage.Folder,true); } catch {} }
+   bool created; using(var mutex=new Mutex(true,firstRun?"Local\\Dayglance.FirstRun":"Local\\Dayglance.Desktop.1",out created)) {
     if(!created) { MessageBox.Show("Dayglance is already running. Open it from the system tray.","Dayglance"); return; }
     State state=new State();
     try { if(File.Exists(Storage.FilePath)) state=Storage.Read(Storage.FilePath); }
@@ -349,7 +352,7 @@ namespace Dayglance {
     var app=new Application(); app.DispatcherUnhandledException+=(s,e)=> { ReportCrash(e.Exception,false); e.Handled=true; };
     MainWindow window;
     try { window=new MainWindow(state,false); } catch(Exception ex) { ReportCrash(ex,true); return; }
-    app.Run(window);
+    window.OfferWelcome(); app.Run(window);
    }
   }
   // Startup failures used to exit silently; log the full exception and tell the user where it is.
