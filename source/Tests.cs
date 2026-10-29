@@ -59,6 +59,7 @@ namespace Dayglance {
     var wednesday=new DateTime(2026,10,28);
     Check(GoalPlan.Period("week",wednesday)=="2026-10-25" && GoalPlan.Period("month",wednesday)=="2026-10" && GoalPlan.Period("quarter",wednesday)=="2026-Q4" && GoalPlan.Period("year",wednesday)=="2026","goal periods for each span");
     Check(GoalPlan.Previous("2026-10-25")=="2026-10-18" && GoalPlan.Previous("2026-01")=="2025-12" && GoalPlan.Previous("2026-Q1")=="2025-Q4" && GoalPlan.Previous("2026")=="2025","previous goal periods");
+    Check(GoalPlan.Shift("2026-12",1)=="2027-01" && GoalPlan.Shift("2026-10-25",1)=="2026-11-01" && GoalPlan.Shift("2026-Q4",1)=="2027-Q1" && GoalPlan.Shift("2026",2)=="2028" && GoalPlan.Shift("2026-10",0)=="2026-10","goal periods step forward");
     Check(GoalPlan.SpanOf("2026-Q2")=="quarter" && GoalPlan.SpanOf("2026-Q5")==null && GoalPlan.SpanOf("2026-13")==null && GoalPlan.SpanOf("abcd")==null && GoalPlan.SpanOf(null)==null,"goal period keys are checked");
     Check(GoalPlan.Anchor(wednesday,wednesday)==wednesday && GoalPlan.Anchor(new DateTime(2026,11,2),wednesday)==new DateTime(2026,11,4),"a week's goals follow today, or its middle day");
     var planned=new State(); planned.Goals.Add(new Goal { Id="g1",Text="Read a book",Period="2026-10-18" }); planned.Goals.Add(new Goal { Id="g2",Text="Run 20 km",Period="2026-10-18",Done=true }); Schedule.Validate(planned);
@@ -148,8 +149,16 @@ namespace Dayglance {
     var savedGoals=Storage.Read(Storage.FilePath).Goals; Check(savedGoals.Count==3 && savedGoals.Single(g=>g.Id=="gw").Done && savedGoals.Any(g=>g.Text=="Llamar a mamá" && g.Period==GoalPlan.Period("week",AppClock.Today)),"goals are added, ticked and saved from the popover");
     w.GoalsPopup.IsOpen=false; app.Dispatcher.Invoke(DispatcherPriority.Background,new Action(()=> {})); Check(w.GoalsPopup==null && goalPill("Metas · 2/3"),"closing the popover updates the pill"); w.Width=1200; w.UpdateLayout();
     Click(w,"Añadir una meta"); goalsView=(FrameworkElement)w.GoalsPopup.Child; goalsView.UpdateLayout(); var goalText=(TextBlock)Descendants<CheckBox>(goalsView).First(c=>c.Content is TextBlock && ((TextBlock)c.Content).Text=="Leer 50 páginas").Content;
-    Check(goalText.FontFamily.Source=="Segoe UI","goals opened from + use the text font, not the icon font"); w.GoalsPopup.IsOpen=false; app.Dispatcher.Invoke(DispatcherPriority.Background,new Action(()=> {}));
-    Click(w,"Día"); Check(goalPill("Metas de la semana · 1/2") && goalPill("Metas del año · 1/1") && !goalPill("Metas del mes"),"day view shows the goal pills for the day shown");
+    Check(goalText.FontFamily.Source=="Segoe UI","goals opened from + use the text font, not the icon font");
+    // Edit a goal in place, then add one for next month: it is saved for that month and the current pills don't change.
+    Func<Func<Button,bool>,Button> popupButton=match=> { goalsView.UpdateLayout(); return Descendants<Button>(goalsView).First(match); }; Action<Button> press=b=>b.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+    press(popupButton(b=>Convert.ToString(b.ToolTip)=="Editar meta")); goalsView.UpdateLayout(); var editBox=Descendants<TextBox>(goalsView).First(); Check(editBox.Text=="Leer 50 páginas","edit opens with the goal's text"); editBox.Text="Leer 80 páginas";
+    editBox.RaiseEvent(new System.Windows.Input.KeyEventArgs(System.Windows.Input.Keyboard.PrimaryDevice,PresentationSource.FromVisual(editBox),0,System.Windows.Input.Key.Enter) { RoutedEvent=System.Windows.Input.Keyboard.PreviewKeyDownEvent });
+    Check(w.State.Goals.Single(g=>g.Id=="gw").Text=="Leer 80 páginas" && Storage.Read(Storage.FilePath).Goals.Single(g=>g.Id=="gw").Text=="Leer 80 páginas","goal text is edited in place and saved");
+    press(popupButton(b=>Convert.ToString(b.Content)=="Mes")); press(popupButton(b=>Convert.ToString(b.ToolTip)=="Siguiente")); goalsView.UpdateLayout(); Descendants<TextBox>(goalsView).Last().Text="Planear vacaciones"; press(popupButton(b=>Convert.ToString(b.Content)=="Añadir"));
+    string nextMonth=GoalPlan.Shift(GoalPlan.Period("month",AppClock.Today),1); Check(w.State.Goals.Any(g=>g.Text=="Planear vacaciones" && g.Period==nextMonth),"a goal can be added for next month");
+    w.GoalsPopup.IsOpen=false; app.Dispatcher.Invoke(DispatcherPriority.Background,new Action(()=> {}));
+    Click(w,"Día"); Check(goalPill("Metas de la semana · 1/2") && goalPill("Metas del año · 1/1") && !goalPill("Metas del mes"),"day view shows the goal pills for the day shown, not next month's");
     // Welcome tour (Spanish at this point): name, weekly days, reminder, then the tips page.
     int before=w.State.Activities.Count; w.State.Onboarded=false;
     app.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle,new Action(()=> {

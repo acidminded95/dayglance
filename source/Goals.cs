@@ -39,10 +39,12 @@ namespace Dayglance {
    if(period.Length==4 && int.TryParse(period,NumberStyles.None,Invariant,out year) && year>=1) { start=new DateTime(year,1,1); return "year"; }
    start=DateTime.MinValue; return null;
   }
-  public static string Previous(string period) {
+  // The period a number of steps after (or, when negative, before) this one, in the same span.
+  public static string Shift(string period,int steps) {
    string span=SpanOf(period); var start=Start(period);
-   return Period(span,span=="week"?start.AddDays(-7):span=="month"?start.AddMonths(-1):span=="quarter"?start.AddMonths(-3):start.AddYears(-1));
+   return Period(span,span=="week"?start.AddDays(7*steps):span=="month"?start.AddMonths(steps):span=="quarter"?start.AddMonths(3*steps):start.AddYears(steps));
   }
+  public static string Previous(string period) { return Shift(period,-1); }
   // The day whose month, quarter and year a week shows: today in the current week, otherwise the week's middle day.
   public static DateTime Anchor(DateTime day,DateTime today) { var first=Schedule.WeekStart(day); return today>=first && today<first.AddDays(7)?today.Date:first.AddDays(3); }
   public static List<Goal> For(State state,string period) { return state.Goals.Where(g=>g.Period==period).ToList(); }
@@ -119,37 +121,64 @@ namespace Dayglance {
   // Popover for one span's goals, or (span null) every span that has goals, with a span picker for new ones.
   void OpenGoals(FrameworkElement target,string span) {
    if(target==null || (GoalsPopup!=null && GoalsPopup.IsOpen)) return;
-   var anchor=GoalAnchor(); string addSpan=span??"week"; bool focusInput=false;
+   var anchor=GoalAnchor(); string addSpan=span??"week",editing=null; int addOffset=0; bool focusInput=false;
    var panel=new StackPanel { Width=290 };
    var popup=new Popup { PlacementTarget=target,Placement=PlacementMode.Bottom,VerticalOffset=6,StaysOpen=false,AllowsTransparency=true };
    // The popover takes its font from its target, and the + button uses the icon font, so set the text font here.
-   var frame=new Border { LayoutTransform=new ScaleTransform(UI.Scale,UI.Scale),Child=new ScrollViewer { Content=panel,MaxHeight=480,VerticalScrollBarVisibility=ScrollBarVisibility.Auto },Background=UI.Card,BorderBrush=UI.Line,BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(10),Padding=new Thickness(14,12,14,12) }; TextElement.SetFontFamily(frame,new FontFamily("Segoe UI")); popup.Child=frame;
-   Action fill=null; fill=()=> {
+   var frame=new Border { LayoutTransform=new ScaleTransform(UI.Scale,UI.Scale),Child=new ScrollViewer { Content=panel,MaxHeight=520,VerticalScrollBarVisibility=ScrollBarVisibility.Auto },Background=UI.Card,BorderBrush=UI.Line,BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(10),Padding=new Thickness(14,12,14,12) }; TextElement.SetFontFamily(frame,new FontFamily("Segoe UI")); popup.Child=frame;
+   Action fill=null;
+   // One goal: tick, edit and remove; while editing, a text box that saves on Enter or when it loses focus, and Esc cancels.
+   Action<Goal> addGoalRow=goal=> {
+    var entry=goal; var row=new DockPanel { Margin=new Thickness(0,1,0,1) };
+    if(editing==entry.Id) {
+     var box=UI.Input(entry.Text); box.MaxLength=200; box.FontSize=12; box.Padding=new Thickness(5,3,5,3); box.Margin=new Thickness(0); row.Children.Add(box);
+     Action<bool> finish=keep=> {
+      if(editing!=entry.Id) return; editing=null; string text=(box.Text??"").Trim();
+      if(keep && text.Length>0 && text!=entry.Text) { string before=entry.Text; entry.Text=text; if(!Save()) entry.Text=before; }
+      fill();
+     };
+     box.PreviewKeyDown+=(s,e)=> { if(e.Key==Key.Enter) { e.Handled=true; finish(true); } else if(e.Key==Key.Escape) { e.Handled=true; finish(false); } };
+     box.LostKeyboardFocus+=(s,e)=>finish(true);
+     Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input,new Action(()=> { box.Focus(); box.SelectAll(); }));
+    } else {
+     var remove=UI.Icon("\uE711","Remove goal",()=> { int at=State.Goals.IndexOf(entry); State.Goals.Remove(entry); if(!Save()) State.Goals.Insert(at,entry); fill(); });
+     var edit=UI.Icon("\uE70F","Edit goal",()=> { editing=entry.Id; fill(); });
+     foreach(var icon in new[]{remove,edit}) { icon.Width=24; icon.Height=24; icon.FontSize=10; icon.Foreground=UI.Muted; icon.Margin=new Thickness(0); icon.VerticalAlignment=VerticalAlignment.Top; DockPanel.SetDock(icon,Dock.Right); row.Children.Add(icon); }
+     var tick=UI.Tick(entry.Text,entry.Done,UI.Text,UI.Accent,UI.AccentInk); tick.VerticalAlignment=VerticalAlignment.Center; tick.Click+=(s,e)=> { entry.Done=!entry.Done; if(!Save()) entry.Done=!entry.Done; fill(); }; row.Children.Add(tick);
+    }
+    panel.Children.Add(row);
+   };
+   fill=()=> {
     panel.Children.Clear(); bool any=false;
     foreach(var sp in GoalPlan.Spans) {
      string period=GoalPlan.Period(sp,anchor); var goals=GoalPlan.For(State,period);
      int carry=Math.Min(GoalPlan.Unfinished(State,GoalPlan.Previous(period)),GoalPlan.MaxPerPeriod-goals.Count);
      if(span!=null ? sp!=span : goals.Count==0 && carry==0) continue;
      var heading=UI.Label(GoalTitle(sp,anchor).ToUpper(UI.Culture)+(goals.Count>0?"  ·  "+goals.Count(g=>g.Done)+"/"+goals.Count:""),10,UI.Accent); heading.Margin=new Thickness(0,any?10:0,0,4); panel.Children.Add(heading); any=true;
-     foreach(var goal in goals) {
-      var entry=goal; var row=new DockPanel { Margin=new Thickness(0,1,0,1) };
-      var remove=UI.Icon("","Remove goal",()=> { int at=State.Goals.IndexOf(entry); State.Goals.Remove(entry); if(!Save()) State.Goals.Insert(at,entry); fill(); }); remove.Width=24; remove.Height=24; remove.FontSize=10; remove.Foreground=UI.Muted; remove.VerticalAlignment=VerticalAlignment.Top; DockPanel.SetDock(remove,Dock.Right); row.Children.Add(remove);
-      var tick=UI.Tick(goal.Text,goal.Done,UI.Text,UI.Accent,UI.AccentInk); tick.VerticalAlignment=VerticalAlignment.Center; tick.Click+=(s,e)=> { entry.Done=!entry.Done; if(!Save()) entry.Done=!entry.Done; fill(); }; row.Children.Add(tick);
-      panel.Children.Add(row);
-     }
+     foreach(var goal in goals) addGoalRow(goal);
      if(carry>0) {
       var move=UI.Button(string.Format(UI.T(CarryText[sp]),carry),()=> { var before=State.Goals.Select(g=>g.Period).ToList(); GoalPlan.CarryOver(State,period); if(!Save()) for(int i=0;i<before.Count;i++) State.Goals[i].Period=before[i]; fill(); });
       move.Background=Brushes.Transparent; move.Foreground=UI.Accent; move.MinHeight=26; move.FontSize=11; move.Margin=new Thickness(-10,0,0,0); move.HorizontalAlignment=HorizontalAlignment.Left; panel.Children.Add(move);
      }
     }
+    if(span==null && !any) { var hint=UI.Label("Set a goal for this week, month, quarter or year.",12,UI.Muted); hint.Margin=new Thickness(0,0,0,4); panel.Children.Add(hint); }
+    // Adding: choose the span (from + only) and step to the period the goal is for, such as next month.
+    var caption=UI.Label("ADD A GOAL",10,UI.Muted); caption.Margin=new Thickness(0,any?14:6,0,4); panel.Children.Add(caption);
     if(span==null) {
-     if(!any) { var hint=UI.Label("Set a goal for this week, month, quarter or year.",12,UI.Muted); hint.Margin=new Thickness(0,0,0,4); panel.Children.Add(hint); }
-     var picker=new WrapPanel { Margin=new Thickness(0,any?12:6,0,6) };
-     foreach(var sp in GoalPlan.Spans) { string spanKey=sp; var choice=UI.Button(SpanNames[sp],()=> { addSpan=spanKey; focusInput=true; fill(); },sp==addSpan); choice.MinHeight=26; choice.FontSize=11; choice.Margin=new Thickness(0,0,4,4); picker.Children.Add(choice); }
+     var picker=new WrapPanel { Margin=new Thickness(0,0,0,2) };
+     foreach(var sp in GoalPlan.Spans) { string spanKey=sp; var choice=UI.Button(SpanNames[sp],()=> { addSpan=spanKey; addOffset=0; focusInput=true; fill(); },sp==addSpan); choice.MinHeight=26; choice.FontSize=11; choice.Margin=new Thickness(0,0,4,4); picker.Children.Add(choice); }
      panel.Children.Add(picker);
     }
-    string addPeriod=GoalPlan.Period(addSpan,anchor); bool full=GoalPlan.For(State,addPeriod).Count>=GoalPlan.MaxPerPeriod;
-    if(full) { var note=UI.Label("Up to 5 goals for each period.",11,UI.Muted); note.Margin=new Thickness(0,6,0,0); panel.Children.Add(note); }
+    string addPeriod=GoalPlan.Shift(GoalPlan.Period(addSpan,anchor),addOffset);
+    var stepper=new DockPanel { Margin=new Thickness(0,0,0,6) };
+    var back=UI.Icon("\uE76B","Previous",()=> { addOffset--; focusInput=true; fill(); }); var forward=UI.Icon("\uE76C","Next",()=> { addOffset++; focusInput=true; fill(); });
+    foreach(var step in new[]{back,forward}) { step.Width=26; step.Height=26; step.FontSize=10; step.Margin=new Thickness(0); }
+    DockPanel.SetDock(back,Dock.Left); DockPanel.SetDock(forward,Dock.Right); stepper.Children.Add(back); stepper.Children.Add(forward);
+    var periodName=new TextBlock { Text=GoalTitle(addSpan,GoalPlan.Start(addPeriod)),FontSize=12,FontWeight=addOffset==0?FontWeights.Normal:FontWeights.SemiBold,Foreground=addOffset==0?UI.Muted:UI.Accent,TextAlignment=TextAlignment.Center,VerticalAlignment=VerticalAlignment.Center,ToolTip=UI.T("The period this goal is for") };
+    stepper.Children.Add(periodName); panel.Children.Add(stepper);
+    // Goals of another period are listed here, so they can be checked and edited before that period comes around.
+    var chosen=GoalPlan.For(State,addPeriod); if(addOffset!=0) foreach(var goal in chosen) addGoalRow(goal);
+    if(chosen.Count>=GoalPlan.MaxPerPeriod) { var note=UI.Label("Up to 5 goals for each period.",11,UI.Muted); note.Margin=new Thickness(0,6,0,0); panel.Children.Add(note); }
     else {
      var input=UI.Input(""); input.MaxLength=200; input.FontSize=13; input.Padding=new Thickness(6,5,6,5); input.Margin=new Thickness(0); input.ToolTip=UI.T("Type a goal and press Enter");
      Action add=()=> {
@@ -158,9 +187,8 @@ namespace Dayglance {
       focusInput=true; fill();
      };
      input.PreviewKeyDown+=(s,e)=> { if(e.Key==Key.Enter) { e.Handled=true; add(); } };
-     var addRow=new DockPanel { Margin=new Thickness(0,span==null?0:8,0,0) }; var addButton=UI.Button("Add",add,true); addButton.MinHeight=28; addButton.Margin=new Thickness(6,0,0,0); DockPanel.SetDock(addButton,Dock.Right); addRow.Children.Add(addButton); addRow.Children.Add(input);
-     var caption=UI.Label("ADD A GOAL",10,UI.Muted); caption.Margin=new Thickness(0,span==null?0:10,0,4); panel.Children.Add(caption); addRow.Margin=new Thickness(0); panel.Children.Add(addRow);
-     if(focusInput) { focusInput=false; Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input,new Action(()=>input.Focus())); }
+     var addRow=new DockPanel { Margin=new Thickness(0,addOffset!=0&&chosen.Count>0?6:0,0,0) }; var addButton=UI.Button("Add",add,true); addButton.MinHeight=28; addButton.Margin=new Thickness(6,0,0,0); DockPanel.SetDock(addButton,Dock.Right); addRow.Children.Add(addButton); addRow.Children.Add(input); panel.Children.Add(addRow);
+     if(focusInput && editing==null) { focusInput=false; Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input,new Action(()=>input.Focus())); }
     }
    };
    fill();
