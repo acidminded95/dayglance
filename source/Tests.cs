@@ -36,7 +36,7 @@ namespace Dayglance {
     a.Start="22:00"; a.End="05:00"; a.Date=null; a.Days=new[]{0,1,2,3,4,5,6}; var pieces=Schedule.Layout(s,monday); Check(pieces.Count==2 && pieces[0].StartHour==0 && pieces[0].EndHour==5 && pieces[1].StartHour==22 && pieces[1].EndHour==24,"overnight splits at week day boundaries");
     s.Activities.Add(new Activity { Id="overlap",Title="Overlap",Color="#FFAA88",Start="23:00",End="23:30",Days=new[]{1},Reminder=-1 }); var lanes=Schedule.Layout(s,monday).Where(b=>b.StartHour>=22).ToList(); Check(lanes.Count==2 && lanes[0].Lanes==2 && lanes[1].Lanes==2 && lanes[0].Lane!=lanes[1].Lane,"overlapping events get separate lanes");
     var legacy=Storage.Serializer().Deserialize<State>("{\"Version\":1,\"Activities\":[]}"); Schedule.Validate(legacy); Check(legacy.Theme=="midnight" && legacy.Language=="en" && !legacy.WeekView,"version one backup migration"); Check(!legacy.Onboarded,"older data has not seen the welcome tour");
-    s.Theme="terracotta"; s.Language="es"; s.WeekView=true; Storage.Save(s); round=Storage.Read(Storage.FilePath); Check(round.Theme=="terracotta" && round.Language=="es" && round.WeekView,"new preferences persist");
+    s.Theme="terracotta"; s.ThemeMode="system"; s.Language="es"; s.WeekView=true; Storage.Save(s); round=Storage.Read(Storage.FilePath); Check(round.Theme=="terracotta" && round.ThemeMode=="system" && round.Language=="es" && round.WeekView,"new preferences persist");
     var advanced=new State(); advanced.Activities.Add(new Activity { Id="advance",Title="Exam",Start="12:00",End="13:00",Days=new[]{2},Color="#AACCAA",Reminder=0,ExtraReminders=new List<int>{1440} });
     Check(Schedule.Reminders(advanced,monday.AddHours(12)).Count==1 && Schedule.Reminders(advanced,monday.AddHours(12))[0].Advance,"one-day advance reminder");
     Check(Schedule.Reminders(advanced,monday.AddHours(11).AddMinutes(59)).Count==0,"advance reminder not early");
@@ -74,6 +74,12 @@ namespace Dayglance {
     Check(Palette.Hex(Palette.FromHsv(0,0,0))=="#000000" && Palette.Normalize("f4af8c")=="#F4AF8C" && Palette.Normalize("#abc")=="#AABBCC" && Palette.Normalize("#12345")==null,"hex normalization and HSV");
     double hh,ss,vv; Palette.ToHsv(Palette.Parse("#F4AF8C"),out hh,out ss,out vv); Check(Palette.Hex(Palette.FromHsv(hh,ss,vv))=="#F4AF8C","HSV round trip");
     Check(Palette.Contrast(Palette.Readable("#335533","#101010",3),"#101010")>=3 && Palette.Contrast(Palette.Readable("#DDEEDD","#FAFAFA",3),"#FAFAFA")>=3,"readable accent adjustment");
+    foreach(var native in UI.Themes) {
+     var other=UI.Variants.Single(v=>v.Id==native.Id); Check(Palette.IsDark(native.Background)!=Palette.IsDark(other.Background),"each theme has a light and a dark palette: "+native.Id);
+     foreach(var t in new[]{native,other}) Check(Palette.Contrast(t.Background,t.Foreground)>=7 && Palette.Contrast(t.Surface,t.Foreground)>=7 && Palette.Contrast(t.Background,t.Muted)>=4.5 && Palette.Contrast(t.Background,t.Accent)>=4.5,"theme palette is readable: "+t.Id);
+     Check(UI.ForMode(native,null)==native && !Palette.IsDark(UI.ForMode(native,"light").Background) && Palette.IsDark(UI.ForMode(native,"dark").Background),"theme mode picks the palette: "+native.Id);
+    }
+    Check(UI.ForMode(Palette.Generate("Mine","#132C25","#F4AF8C"),"light").Background=="#132C25","custom themes keep their colors in every mode");
     Check(Palette.Ideas("#F4AF8C").All(i=>Palette.Contrast(i.Background,i.Foreground)>=4.5 && Palette.Contrast(i.Background,i.Accent)>=3),"theme ideas are readable");
     var legacyLead=new State(); legacyLead.Activities.Add(new Activity { Id="lead",Title="Lead",Start="10:00",End="11:00",Days=new[]{1},Color="#AACCAA",Reminder=30 }); Check(Schedule.MigrateReminders(legacyLead) && legacyLead.Activities[0].Reminder==0 && legacyLead.Activities[0].ExtraReminders.Single()==30 && !Schedule.MigrateReminders(legacyLead),"legacy lead reminder migrates to additional reminder");
     UI.Language="en"; UI.Hour12=true; Check(UI.Clock(new DateTime(2026,9,16,13,5,0))=="1:05 PM" && UI.HourLabel(0)=="12 AM" && UI.ClockText("12:30")=="12:30 PM","12-hour clock formatting"); UI.Hour12=false; Check(UI.Clock(new DateTime(2026,9,16,13,5,0))=="13:05","24-hour clock formatting");
@@ -119,8 +125,8 @@ namespace Dayglance {
     double fullWidth=w.Width,fullHeight=w.Height; Click(w,"Mini widget"); w.UpdateLayout(); Check(w.State.Compact && w.Width<fullWidth,"mini widget is smaller"); Capture(w,"compact-preview"); Click(w,"Expand"); w.UpdateLayout(); Check(Math.Abs(w.Width-fullWidth)<1 && Math.Abs(w.Height-fullHeight)<1,"expand restores full size"); Check(!w.State.Compact,"expand toggle");
     Check(!w.Topmost,"not pinned on top by default"); Click(w,"Pin on top"); Check(w.Topmost && w.State.Pinned,"pin toggle"); Click(w,"● Pinned on top"); Check(!w.Topmost,"unpin toggle");
     w.Width=500; w.UpdateLayout(); double sharedWidth=w.ActualWidth,sharedHeight=w.ActualHeight; Click(w,"Week"); w.UpdateLayout(); Check(Math.Abs(w.Width-sharedWidth)<1 && Math.Abs(w.Height-sharedHeight)<1,"week view keeps the window size");Check(w.State.WeekView && Descendants<System.Windows.Shapes.Line>(w).Count()>=32,"week toggle"); double oldHeight=Descendants<Canvas>(w).Max(c=>c.Height); w.ZoomSchedule(1,100); w.UpdateLayout(); Check(Descendants<Canvas>(w).Max(c=>c.Height)>oldHeight,"week zoom increases timeline scale"); w.ZoomSchedule(-1,100); w.UpdateLayout(); Check(Math.Abs(Descendants<Canvas>(w).Max(c=>c.Height)-oldHeight)<.1,"week zoom reverses"); w.Width=420; w.UpdateLayout(); w.Refresh(true); w.UpdateLayout(); Check(Descendants<ScrollViewer>(w).Any(v=>v.ScrollableWidth>1),"narrow week scrolls horizontally"); Click(w,"Day"); w.UpdateLayout(); Check(!w.State.WeekView && Math.Abs(w.Width-420)<1 && Math.Abs(w.State.WindowWidth-420)<1,"day toggle keeps the shared window size");
-    app.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle,new Action(()=> { var dialog=app.Windows.Cast<Window>().First(x=>x!=w); Descendants<Button>(dialog).First(b=>Convert.ToString(b.ToolTip)=="Terracotta garden").RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); var language=Descendants<Choice>(dialog).First(c=>c.Items.Contains("Español")); language.SelectedIndex=1; Click(dialog,"Save preferences"); })); Click(w,"Settings");
-    w.UpdateLayout(); Check(w.State.Theme=="terracotta" && w.Background.ToString()=="#FFF4E8DE","theme applied without restart"); Check(UI.T("Settings")=="Ajustes" && Descendants<Button>(w).Any(b=>Convert.ToString(b.Content)=="Semana"),"Spanish applied without restart");
+    app.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle,new Action(()=> { var dialog=app.Windows.Cast<Window>().First(x=>x!=w); Click(dialog,"Light"); dialog.UpdateLayout(); Descendants<Button>(dialog).First(b=>Convert.ToString(b.ToolTip)=="Terracotta garden").RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); var language=Descendants<Choice>(dialog).First(c=>c.Items.Contains("Español")); language.SelectedIndex=1; Click(dialog,"Save preferences"); })); Click(w,"Settings");
+    w.UpdateLayout(); Check(w.State.Theme=="terracotta" && w.State.ThemeMode=="light" && w.Background.ToString()=="#FFF4E8DE","theme applied without restart"); Check(UI.T("Settings")=="Ajustes" && Descendants<Button>(w).Any(b=>Convert.ToString(b.Content)=="Semana"),"Spanish applied without restart");
     Check(w.WindowStyle==WindowStyle.None && w.AllowsTransparency,"main window has no native frame");
     app.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle,new Action(()=> {
      var dialog=app.Windows.Cast<Window>().First(x=>x!=w);
@@ -196,11 +202,11 @@ namespace Dayglance {
    var app=new Application(); app.ShutdownMode=ShutdownMode.OnExplicitShutdown;
    try {
     Storage.Folder=Path.Combine(AppDomain.CurrentDomain.BaseDirectory,"showcase-data-"+Guid.NewGuid().ToString("N"));
-    foreach(var theme in UI.Themes) {
-     var s=Storage.Read(input); s.Theme=theme.Id; s.Language="es"; s.WeekView=true; s.Compact=false;
-     var w=new MainWindow(s,true); w.ShowInTaskbar=false; w.ShowActivated=false; w.Width=1200; w.Height=Math.Min(950,SystemParameters.WorkArea.Height); w.Show(); w.UpdateLayout(); w.Refresh(true); w.UpdateLayout(); Capture(w,"week-"+theme.Id); Check(Descendants<System.Windows.Shapes.Line>(w).Count()>=32,"week grid renders "+theme.Id);
-     var hours=Descendants<TextBlock>(w).Where(t=>t.Text=="23:00"||t.Text=="24:00").ToList(); Check(hours.Count==2 && Math.Abs(Canvas.GetTop(hours[0])-Canvas.GetTop(hours[1]))>=14,"23 and 24 hour labels do not overlap "+theme.Id);
-     if(theme.Id=="paper") {
+    foreach(var theme in UI.Themes) foreach(string mode in new[]{"light","dark"}) {
+     var s=Storage.Read(input); s.Theme=theme.Id; s.ThemeMode=mode; s.Language="es"; s.WeekView=true; s.Compact=false;
+     var w=new MainWindow(s,true); w.ShowInTaskbar=false; w.ShowActivated=false; w.Width=1200; w.Height=Math.Min(950,SystemParameters.WorkArea.Height); w.Show(); w.UpdateLayout(); w.Refresh(true); w.UpdateLayout(); Capture(w,"week-"+theme.Id+"-"+mode); Check(Descendants<System.Windows.Shapes.Line>(w).Count()>=32,"week grid renders "+theme.Id+" "+mode);
+     var hours=Descendants<TextBlock>(w).Where(t=>t.Text=="23:00"||t.Text=="24:00").ToList(); Check(hours.Count==2 && Math.Abs(Canvas.GetTop(hours[0])-Canvas.GetTop(hours[1]))>=14,"23 and 24 hour labels do not overlap "+theme.Id+" "+mode);
+     if(theme.Id=="paper" && mode=="light") {
       Click(w,"Día"); Capture(w,"day-paper");
       app.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle,new Action(()=> { var dialog=app.Windows.Cast<Window>().First(x=>x!=w); Capture(dialog,"editor-paper-es"); Click(dialog,"Cancelar"); })); Click(w,"Añadir actividad");
       app.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle,new Action(()=> { var dialog=app.Windows.Cast<Window>().First(x=>x!=w); Capture(dialog,"settings-paper-es"); dialog.Close(); })); Click(w,"Ajustes");

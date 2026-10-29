@@ -74,15 +74,15 @@ Choose start/end hours and minutes from menus. A new activity starts at the next
 
 Pick a color from the presets and every color already in your schedule, or use **+** to open the color picker for a custom color.
 
-Select repeat-day pills or Every day, Weekdays, or Once; the matching preset is highlighted, so a new activity starts on Once. The custom calendar is enabled for one-time activities. Editing a repeating activity changes its whole series, including past views. Single-occurrence overrides are not supported.
+Select repeat-day pills or Every day, Weekdays, or Once; the matching preset is highlighted, so a new activity starts on Once. The label above the days says whether the activity repeats. The custom calendar is enabled for one-time activities. Editing a repeating activity changes its whole series, including past views. Single-occurrence overrides are not supported.
 
-**Checklist (optional):** add up to 30 items, such as things to bring or steps to finish. Drag an item by its grip, or press Alt+↑/↓ while typing in it, to reorder. Tick them right on the day card; the time line, week view tooltip, Right now card and mini widget show progress (✓ 2/5), and a reminder lists what is still open. Ticks belong to that day's occurrence: a repeating activity comes around again with a fresh list, while a one-time activity keeps its ticks. Ticking every item does not mark the activity done; use the circle button for that.
+**Checklist (optional):** add up to 30 items, such as things to bring or steps to finish. Drag an item by its grip, or press Alt+↑/↓ while typing in it, to reorder. Items with a grip on the Day view card can be dragged there too; the order applies to every occurrence. Tick them right on the day card; the time line, week view tooltip, Right now card and mini widget show progress (✓ 2/5), and a reminder lists what is still open. Ticks belong to that day's occurrence: a repeating activity comes around again with a fresh list, while a one-time activity keeps its ticks. Ticking every item does not mark the activity done; use the circle button for that.
 
 ## Themes and language
 
 Open **Settings / Ajustes**. Its tabs group **Appearance** (theme, text size, language), **Schedule** (12- or 24-hour time, card style, current-activity highlight), **Reminders** (reminders, sound, startup) and **Data** (import/export). The settings window previews your choices, including **Test reminder**, and the widget changes only when you save preferences. Closing without saving discards the preview.
 
-Twelve built-in themes, six dark and six light. Names are translated when the app is in Spanish.
+Twelve built-in themes, each with a light and a dark palette. Choose **Light**, **Dark** or **Sync with system** above the theme list; Sync follows the Windows app mode (Settings → Personalization → Colors) and switches while Dayglance is running. Custom themes keep their own colors in every mode. Names are translated when the app is in Spanish. The descriptions below are each theme's original look.
 
 - **Midnight mint / Menta nocturna:** charcoal and mint.
 - **Terracotta garden / Jardín terracota:** clay, cream, and soft greens.

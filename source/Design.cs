@@ -29,6 +29,31 @@ namespace Dayglance {
    new Theme("honey","Honey linen","#FAF4E4","#FFFCF3","#3B3222","#6B604C","#935C00","#F1E2B8","#DCCDA5"),
    new Theme("espresso","Espresso cream","#1E1714","#2A211C","#F4EADF","#BFAE9E","#E3B07A","#36291F","#4A3A2E")
   };
+  // The other mode of each built-in theme (same id): light versions of dark themes and dark versions of light ones.
+  public static readonly Theme[] Variants={
+   new Theme("midnight","Midnight mint","#EEF3F1","#FAFCFB","#18322B","#4F625C","#1A6E51","#D5EBE2","#C2D5CE"),
+   new Theme("terracotta","Terracotta garden","#1E1A17","#2A2420","#F3E8DD","#BFB2A3","#E08A6E","#2C3328","#463D35"),
+   new Theme("midcentury","Midcentury forest","#F6EFE1","#FFFAF0","#1F3A30","#5C6450","#A84B12","#DCE5D3","#C9CDB6"),
+   new Theme("paper","Paper sage","#171C19","#212823","#EDE8DF","#B4AA9A","#8FC2A7","#3A2A2F","#3C4A42"),
+   new Theme("lavender","Lavender dusk","#F3F0FA","#FCFBFF","#2D2442","#615878","#6C45B8","#E4DBF7","#D0C7E3"),
+   new Theme("cyberpunk","Cyberpunk ember","#FFF6EC","#FFFFFF","#1A1410","#6A5444","#B04A00","#FFE3C7","#EBCBAE"),
+   new Theme("ocean","Ocean aqua","#EAF4F7","#F8FCFD","#0F2A38","#4A6573","#00707C","#D2E9EF","#BCD6DE"),
+   new Theme("rose","Morning rose","#22171B","#2E2025","#F8E9EC","#C8AEB5","#F28CA6","#3E2630","#4F3640"),
+   new Theme("sky","Nordic sky","#111A24","#1A2632","#E8F0F8","#A3B4C6","#7DB4F0","#1E3148","#2E4258"),
+   new Theme("graphite","Graphite lime","#F2F3EF","#FFFFFF","#1B1C1E","#5C5F63","#4A7300","#E3EDCF","#D3D5D0"),
+   new Theme("honey","Honey linen","#1C1912","#27231A","#F5EEDC","#C2B79E","#F2B544","#3A3020","#4A4130"),
+   new Theme("espresso","Espresso cream","#F7EFE6","#FFF9F3","#2E211A","#6B5849","#8E5524","#EBDCC9","#D9C6B2")
+  };
+  // Windows "app mode" (Settings → Personalization → Colors); light when the setting is missing.
+  public static bool SystemLight() { try { var value=Microsoft.Win32.Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize","AppsUseLightTheme",1); return !(value is int) || (int)value!=0; } catch { return true; } }
+  // The palette to show for a theme in a mode; custom themes have one palette and keep it in every mode.
+  public static Theme ForMode(Theme theme,string mode) {
+   if(mode!="light" && mode!="dark" && mode!="system") return theme;
+   bool dark=mode=="dark" || (mode=="system" && !SystemLight()); var other=Variants.FirstOrDefault(v=>v.Id==theme.Id);
+   return other==null || Palette.IsDark(theme.Background)==dark?theme:other;
+  }
+  public static Theme Resolve(State state) { return ForMode(AvailableThemes(state).FirstOrDefault(t=>t.Id==state.Theme)??Themes[0],state.ThemeMode); }
+
   public static Brush Hero=B("#202D32"), Line=B("#354052");
   public static string Language="en";
   public static bool Hour12; // 12-hour clock with AM/PM designators from the UI culture
@@ -40,7 +65,7 @@ namespace Dayglance {
   public static Brush AccentInk { get { return Ink(Accent.ToString()); } }
   public static CultureInfo Culture { get { return CultureInfo.GetCultureInfo(Language=="es"?"es-MX":"en-US"); } }
   public static void Apply(State state) {
-   Language=state.Language; Hour12=state.TimeFormat=="12"; Scale=state.UiScale>0?state.UiScale:1; var theme=AvailableThemes(state).FirstOrDefault(t=>t.Id==state.Theme)??Themes[0];
+   Language=state.Language; Hour12=state.TimeFormat=="12"; Scale=state.UiScale>0?state.UiScale:1; var theme=Resolve(state);
    Bg=B(theme.Background); Card=B(theme.Surface); Text=B(theme.Foreground); Muted=B(theme.Muted); Accent=B(theme.Accent); Hero=B(theme.Hero); Line=B(theme.Line);
    if(Application.Current!=null) Application.Current.Resources[typeof(ScrollBar)]=(Style)XamlReader.Parse(ScrollBarStyle(Line.ToString()));
   }
@@ -61,7 +86,7 @@ namespace Dayglance {
    {"Add activity","Añadir actividad"},{"Edit activity","Editar actividad"},{"A little structure.","Un poco de estructura."},{"Make it yours.","A tu manera."},
    {"ACTIVITY NAME","NOMBRE DE LA ACTIVIDAD"},{"START / END  ·  24-HOUR TIME (HH:MM)","INICIO / FIN  ·  FORMATO DE 24 HORAS (HH:MM)"},
    {"An earlier end time finishes the following day.","Si el fin es anterior al inicio, termina al día siguiente."},
-   {"REPEAT ON  ·  LEAVE EMPTY FOR ONE DATE","REPETIR  ·  SIN DÍAS PARA UNA SOLA FECHA"},{"Every day","Todos los días"},{"Weekdays","Lun–Vie"},{"Once","Una vez"},
+   {"REPEAT OFF  ·  PICK DAYS TO REPEAT EVERY WEEK","SIN REPETICIÓN  ·  ELIGE DÍAS PARA REPETIR CADA SEMANA"},{"REPEATS EVERY WEEK  ·  CHOOSE ONCE FOR A SINGLE DATE","SE REPITE CADA SEMANA  ·  ELIGE UNA VEZ PARA UNA SOLA FECHA"},{"Every day","Todos los días"},{"Weekdays","Lun–Vie"},{"Once","Una vez"},
    {"COLOR","COLOR"},{"REMINDER","RECORDATORIO"},{"Off","Desactivado"},{"At start","Al comenzar"},{" minutes before"," minutos antes"},
    {"NOTES (OPTIONAL)","NOTAS (OPCIONAL)"},{"Save activity","Guardar actividad"},{"Cancel","Cancelar"},{"Choose date","Elegir fecha"},
    {"Check your details: ","Revisa los datos: "},{"Manage schedule","Gestionar horario"},{"Your routine","Tu rutina"},{"Edit","Editar"},{"Delete","Eliminar"},{"Delete activity","Eliminar actividad"},
@@ -72,7 +97,7 @@ namespace Dayglance {
    {"Dayglance settings","Ajustes de Dayglance"},{"Set your own pace.","A tu propio ritmo."},{"APPEARANCE","APARIENCIA"},{"LANGUAGE","IDIOMA"},{"REMINDERS & STARTUP","AVISOS E INICIO"},
    {"Midnight mint","Menta nocturna"},{"Terracotta garden","Jardín terracota"},{"Midcentury forest","Bosque retro"},{"Paper sage","Papel y salvia"},{"Lavender dusk","Atardecer lavanda"},{"Cyberpunk ember","Brasa cyberpunk"},
    {"Ocean aqua","Océano aguamarina"},{"Morning rose","Rosa matinal"},{"Nordic sky","Cielo nórdico"},{"Graphite lime","Grafito y lima"},{"Honey linen","Lino y miel"},{"Espresso cream","Espresso y crema"},
-   {"DURATION","DURACIÓN"},{"Drag to reorder","Arrastra para reordenar"},
+   {"DURATION","DURACIÓN"},{"Sync with system","Igual que Windows"},{"Custom themes keep their colors in every mode.","Los temas personalizados conservan sus colores en todos los modos."},{"Drag to reorder","Arrastra para reordenar"},
    {"Enable activity reminders","Activar recordatorios"},{"Play a sound with reminders","Reproducir un sonido"},{"Start when I sign in to Windows","Abrir al iniciar sesión en Windows"},
    {"Reminders work while Dayglance is running, including in the tray. Windows Do Not Disturb can silence them. The × button hides the widget; right-click the tray icon to quit.","Los avisos funcionan mientras Dayglance esté abierto, incluso en la bandeja. No molestar de Windows puede silenciarlos. × oculta el widget; haz clic derecho en su icono para salir."},
    {"Save preferences","Guardar preferencias"},{"Could not save preferences","No se pudieron guardar los ajustes"},{"BACKUP & SHARING","RESPALDOS Y ARCHIVOS"},

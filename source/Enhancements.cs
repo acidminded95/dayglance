@@ -29,6 +29,22 @@ namespace Dayglance {
    base.Content=new Border { LayoutTransform=new ScaleTransform(UI.Scale,UI.Scale),Child=layout,BorderBrush=UI.Line,BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(12),Background=UI.Bg };
   }
  }
+ public static partial class UI {
+  // A handle that drags its row within a vertical panel: the row follows the pointer, and dropped receives its new index among the panel's children.
+  public static FrameworkElement Grip(FrameworkElement row,Panel list,Action<int> dropped,Brush color) {
+   var grip=new TextBlock { Text="\uE76F",FontFamily=new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),FontSize=12,Foreground=color,Width=22,VerticalAlignment=VerticalAlignment.Center,Cursor=Cursors.SizeNS,Background=Brushes.Transparent,ToolTip=T("Drag to reorder") };
+   double grabY=0; var shift=new TranslateTransform(); row.RenderTransform=shift;
+   grip.MouseLeftButtonDown+=(s,e)=> { grabY=e.GetPosition(list).Y; Panel.SetZIndex(row,1); row.Opacity=.85; grip.CaptureMouse(); e.Handled=true; };
+   grip.MouseMove+=(s,e)=> { if(grip.IsMouseCaptured) shift.Y=e.GetPosition(list).Y-grabY; };
+   grip.LostMouseCapture+=(s,e)=> { shift.Y=0; Panel.SetZIndex(row,0); row.Opacity=1; };
+   grip.MouseLeftButtonUp+=(s,e)=> {
+    if(!grip.IsMouseCaptured) return; e.Handled=true; double middle=row.TranslatePoint(new Point(0,0),list).Y+row.ActualHeight/2; int to=0;
+    foreach(FrameworkElement other in list.Children) if(other!=row && middle>other.TranslatePoint(new Point(0,0),list).Y+other.ActualHeight/2) to++;
+    grip.ReleaseMouseCapture(); dropped(to);
+   };
+   return grip;
+  }
+ }
  public class TimeField : StackPanel {
   Choice hours=new Choice(),minutes=new Choice();
   public event Action Changed; // user picked an hour or minute; setting Value does not raise it
@@ -69,12 +85,17 @@ namespace Dayglance {
   }
  }
  public partial class MainWindow {
+  // With "Sync with system", the widget follows Windows when its app mode switches between light and dark.
+  bool systemLight=UI.SystemLight();
+  void OnSystemPreference(object sender,Microsoft.Win32.UserPreferenceChangedEventArgs e) {
+   Dispatcher.BeginInvoke(new Action(()=> { bool light=UI.SystemLight(); if(light==systemLight) return; systemLight=light; if(State.ThemeMode=="system" && !settingsOpen) BuildView(); }));
+  }
   // Theme creator: four user-controlled colors (background, cards, text, accent) with live preview,
   // one-click palette ideas, per-color suggestions and contrast guidance. Derived colors (highlight,
   // secondary text, lines) are generated from those four.
   void CreateTheme(Window owner,Theme editing,Action<Theme> saved) {
    var window=UI.Dialog(owner,editing==null?"Create a theme":"Edit theme",540,780); var p=new StackPanel { Margin=new Thickness(22,6,22,22) }; window.Content=new ScrollViewer { Content=p,VerticalScrollBarVisibility=ScrollBarVisibility.Auto };
-   var basis=editing??UI.AvailableThemes(State).FirstOrDefault(t=>t.Id==State.Theme)??UI.Themes[0];
+   var basis=editing??UI.Resolve(State);
    p.Children.Add(UI.Label("Theme name",12,UI.Muted)); var name=UI.Input(editing==null?UI.T("My theme"):editing.Name); name.MaxLength=40; p.Children.Add(name);
    var previewBox=new Border { Padding=new Thickness(14),CornerRadius=new CornerRadius(12),Margin=new Thickness(0,0,0,14),BorderThickness=new Thickness(1) }; p.Children.Add(previewBox);
    var ideasTitle=UI.Label("Start from an idea",12,UI.Muted); p.Children.Add(ideasTitle); var ideas=new WrapPanel { Margin=new Thickness(0,0,0,10) }; p.Children.Add(ideas);

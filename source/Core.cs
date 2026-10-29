@@ -40,6 +40,7 @@ namespace Dayglance {
   public bool Pinned { get; set; }
   public bool Compact { get; set; }
   public string Theme { get; set; }
+  public string ThemeMode { get; set; } // "light", "dark" or "system"; empty keeps the theme's own look
   public string Language { get; set; }
   public bool WeekView { get; set; }
   public List<Theme> CustomThemes { get; set; }
@@ -122,6 +123,7 @@ namespace Dayglance {
    foreach(var t in s.CustomThemes) {
     if(t==null || string.IsNullOrWhiteSpace(t.Id) || !t.Id.StartsWith("custom-") || !themeIds.Add(t.Id) || string.IsNullOrWhiteSpace(t.Name) || t.Name.Length>40 || new[]{t.Background,t.Surface,t.Foreground,t.Muted,t.Accent,t.Hero,t.Line}.Any(c=>c==null||!System.Text.RegularExpressions.Regex.IsMatch(c,"^#[0-9A-Fa-f]{6}$"))) throw new Exception("Invalid custom theme.");
    }
+   if(!new[]{"light","dark","system"}.Contains(s.ThemeMode)) s.ThemeMode=null;
    if(!new[]{"midnight","terracotta","midcentury","paper","lavender","cyberpunk","ocean","rose","sky","graphite","honey","espresso"}.Contains(s.Theme) && !themeIds.Contains(s.Theme)) s.Theme="midnight";
    if(s.Language!="es") s.Language="en";
    if(double.IsNaN(s.Left)||double.IsInfinity(s.Left)) s.Left=80;
