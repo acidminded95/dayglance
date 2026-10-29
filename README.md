@@ -63,7 +63,7 @@ To see the first-launch experience on a PC that already has a schedule, run `Day
 
 Week view can also hold longer-term goals for the **week, month, quarter or year** it shows. Each span that has goals gets a small pill between the week range and the Right now / Up next card, with its progress (for example **Week 2/4 · October 1/3 · 2026 0/2**). Spans without goals take no space; with none at all you see only a quiet **+ Goal**. Day view shows the same pills on a small card to the right of the date, for the day shown.
 
-- Click a pill to tick, add or remove that span's goals. **+** (or **+ Goal**) opens every span, with a picker for where a new goal goes. Each period holds up to 5 goals.
+- Click a pill to tick, edit (pencil) or remove that span's goals; while editing, Enter saves and Esc cancels. **+** (or **+ Goal**) opens every span. Under **Add a goal**, pick the span and use ‹ › to choose the period it's for, such as next month; that period's goals are listed there so you can check them ahead of time. The pills only show the current periods. Each period holds up to 5 goals.
 - The month, quarter and year follow today when the week shown is the current one; for other weeks they follow the week's middle day.
 - Unfinished goals are not carried over automatically. When the previous period left some open, the popover offers **Move N unfinished from last week** (or month, quarter, year).
 - When the window is too narrow, the pills merge into one **Goals** pill.
