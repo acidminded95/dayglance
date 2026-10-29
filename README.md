@@ -59,6 +59,15 @@ To see the first-launch experience on a PC that already has a schedule, run `Day
 - **Settings → Activity cards** picks a slim color line, a color band with times, or a full-color card for the day view.
 - Day view always highlights the actual current activity. The circle button marks that occurrence done; click again to undo.
 
+## Goals
+
+Week view can also hold longer-term goals for the **week, month, quarter or year** it shows. Each span that has goals gets a small pill between the week range and the Right now / Up next card, with its progress (for example **Week 2/4 · October 1/3 · 2026 0/2**). Spans without goals take no space; with none at all you see only a quiet **+ Goal**.
+
+- Click a pill to tick, add or remove that span's goals. **+** (or **+ Goal**) opens every span, with a picker for where a new goal goes. Each period holds up to 5 goals.
+- The month, quarter and year follow today when the week shown is the current one; for other weeks they follow the week's middle day.
+- Unfinished goals are not carried over automatically. When the previous period left some open, the popover offers **Move N unfinished from last week** (or month, quarter, year).
+- When the window is too narrow, the pills merge into one **Goals** pill.
+
 ## Activities
 
 Choose start/end hours and minutes from menus. Minutes use five-minute intervals; imported nonstandard minutes are preserved as extra choices. An earlier end means the next day. Equal start/end times are rejected.

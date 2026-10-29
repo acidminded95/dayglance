@@ -53,6 +53,19 @@ namespace Dayglance {
     walk.Checklist.AddRange(Enumerable.Range(0,28).Select(n=>new ChecklistItem { Id="n"+n,Text="Item "+n })); Schedule.Validate(listed); walk.Checklist.Add(new ChecklistItem { Id="extra",Text="One too many" }); rejected=false; try { Schedule.Validate(listed); } catch { rejected=true; } Check(rejected,"checklist allows 30 items and rejects 31"); walk.Checklist.RemoveRange(2,29);
     listed.Checked.Add(null); rejected=false; try { Schedule.Validate(listed); } catch { rejected=true; } Check(rejected,"reject invalid tick history"); listed.Checked.RemoveAt(listed.Checked.Count-1);
     walk.Checklist=null; Schedule.Validate(listed); Check(walk.Checklist!=null && walk.Checklist.Count==0,"missing checklist becomes empty");
+    // Goals: one period per week, month, quarter or year; unfinished goals can move to the next period.
+    var wednesday=new DateTime(2026,10,28);
+    Check(GoalPlan.Period("week",wednesday)=="2026-10-25" && GoalPlan.Period("month",wednesday)=="2026-10" && GoalPlan.Period("quarter",wednesday)=="2026-Q4" && GoalPlan.Period("year",wednesday)=="2026","goal periods for each span");
+    Check(GoalPlan.Previous("2026-10-25")=="2026-10-18" && GoalPlan.Previous("2026-01")=="2025-12" && GoalPlan.Previous("2026-Q1")=="2025-Q4" && GoalPlan.Previous("2026")=="2025","previous goal periods");
+    Check(GoalPlan.SpanOf("2026-Q2")=="quarter" && GoalPlan.SpanOf("2026-Q5")==null && GoalPlan.SpanOf("2026-13")==null && GoalPlan.SpanOf("abcd")==null && GoalPlan.SpanOf(null)==null,"goal period keys are checked");
+    Check(GoalPlan.Anchor(wednesday,wednesday)==wednesday && GoalPlan.Anchor(new DateTime(2026,11,2),wednesday)==new DateTime(2026,11,4),"a week's goals follow today, or its middle day");
+    var planned=new State(); planned.Goals.Add(new Goal { Id="g1",Text="Read a book",Period="2026-10-18" }); planned.Goals.Add(new Goal { Id="g2",Text="Run 20 km",Period="2026-10-18",Done=true }); Schedule.Validate(planned);
+    Check(GoalPlan.CarryOver(planned,"2026-10-25")==1 && planned.Goals[0].Period=="2026-10-25" && planned.Goals[1].Period=="2026-10-18","carry over moves only unfinished goals");
+    round=Storage.Serializer().Deserialize<State>(Storage.Serializer().Serialize(planned)); Schedule.Validate(round); Check(round.Goals.Count==2 && round.Goals[1].Done && round.Goals[0].Text=="Read a book","goals JSON round trip"); Check(plain.Goals.Count==0,"older data loads without goals");
+    planned.Goals.AddRange(Enumerable.Range(0,5).Select(n=>new Goal { Id="w"+n,Text="Goal "+n,Period="2026-10-25" })); rejected=false; try { Schedule.Validate(planned); } catch { rejected=true; } Check(rejected,"up to 5 goals per period"); planned.Goals.RemoveAt(planned.Goals.Count-1); Schedule.Validate(planned);
+    Check(GoalPlan.CarryOver(planned,"2026-11-01")==5 && GoalPlan.For(planned,"2026-11-01").Count==5,"carry over moves only as many as fit");
+    planned.Goals[0].Text=" "; rejected=false; try { Schedule.Validate(planned); } catch { rejected=true; } Check(rejected,"reject empty goal"); planned.Goals[0].Text="Read a book";
+    planned.Goals[0].Period="2026-W44"; rejected=false; try { Schedule.Validate(planned); } catch { rejected=true; } Check(rejected,"reject unknown goal period");
     var custom=Palette.Generate("Forest","#132C25","#F4AF8C"); Check(Palette.Contrast(custom.Background,custom.Foreground)>=4.5 && Palette.Contrast(custom.Background,custom.Muted)>=4.5,"generated readable text contrast");
     s.CustomThemes.Add(custom); s.Theme=custom.Id; Storage.Save(s); round=Storage.Read(Storage.FilePath); Check(round.Theme==custom.Id && round.CustomThemes.Single().Accent=="#F4AF8C","custom theme JSON roundtrip");
     Check(Palette.Suggestions("#F4AF8C").Distinct().Count()==4,"color suggestions derive varied accents");
@@ -112,6 +125,18 @@ namespace Dayglance {
     })); Click(w,"Ajustes"); Check(w.State.Theme.StartsWith("custom-") && w.State.CustomThemes.Count==1,"custom theme created and applied");
     using(var icon=BrandIcon.Make()) Check(icon.Width==32,"themed tray icon renders"); var toast=new ReminderToast(UI.T("Notification preview"),UI.T("Your reminder will look like this."),()=>{},false); toast.UpdateLayout(); Capture(toast,"notification-preview"); Check(toast.AllowsTransparency && toast.WindowStyle==WindowStyle.None,"themed notification has no native frame"); toast.Close();
     var incoming=new State(); incoming.Activities.Add(new Activity { Id="imported",Title="Prueba",Start="12:00",End="13:00",Days=new[]{1},Color="#AABBCC",Reminder=-1 }); w.ImportState(incoming); Check(w.State.Activities.Single().Title=="Prueba" && w.State.Theme.StartsWith("custom-") && w.State.Language=="es","import preserves local design preferences"); Check(Directory.GetFiles(Storage.Folder,"before-import-*.json").Length==1,"import creates safety backup");
+    // Goals (Spanish): no pills until a goal is set, one pill per span with goals, merged into one pill on a narrow window.
+    Click(w,"Semana"); Click(w,"Hoy"); w.Width=1200; w.UpdateLayout(); w.Refresh(true); w.UpdateLayout();
+    Func<string,bool> goalPill=tip=> { w.UpdateLayout(); return Descendants<Button>(w).Any(b=>b.IsVisible && Convert.ToString(b.ToolTip).StartsWith(tip+" ·")); };
+    Check(!goalPill("Metas de la semana") && Descendants<Button>(w).Any(b=>b.IsVisible && Convert.ToString(b.Content)=="+ Meta"),"no goal pills until a goal is set");
+    w.State.Goals.Add(new Goal { Id="gw",Text="Leer 50 páginas",Period=GoalPlan.Period("week",AppClock.Today) }); w.State.Goals.Add(new Goal { Id="gy",Text="Correr un medio maratón",Period=GoalPlan.Period("year",AppClock.Today),Done=true }); w.Refresh(true);
+    Check(goalPill("Metas de la semana · 0/1") && goalPill("Metas del año · 1/1") && !goalPill("Metas del mes") && !goalPill("Metas del trimestre") && !w.GoalsMerged,"only spans with goals get a pill");
+    w.Width=420; w.UpdateLayout(); w.Refresh(true); w.UpdateLayout(); Check(w.GoalsMerged && goalPill("Metas"),"goal pills merge into one on a narrow window");
+    Click(w,"Metas"); Check(w.GoalsPopup!=null && w.GoalsPopup.IsOpen,"goals popover opens");
+    var goalsView=(FrameworkElement)w.GoalsPopup.Child; goalsView.UpdateLayout(); Descendants<TextBox>(goalsView).First().Text="Llamar a mamá"; Descendants<Button>(goalsView).First(b=>Convert.ToString(b.Content)=="Añadir").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+    goalsView.UpdateLayout(); Descendants<CheckBox>(goalsView).First(c=>c.Content is TextBlock && ((TextBlock)c.Content).Text=="Leer 50 páginas").RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
+    var savedGoals=Storage.Read(Storage.FilePath).Goals; Check(savedGoals.Count==3 && savedGoals.Single(g=>g.Id=="gw").Done && savedGoals.Any(g=>g.Text=="Llamar a mamá" && g.Period==GoalPlan.Period("week",AppClock.Today)),"goals are added, ticked and saved from the popover");
+    w.GoalsPopup.IsOpen=false; Check(w.GoalsPopup==null && goalPill("Metas · 2/3"),"closing the popover updates the pill"); w.Width=1200; w.UpdateLayout(); Click(w,"Día");
     // Welcome tour (Spanish at this point): name, weekly days, reminder, then the tips page.
     int before=w.State.Activities.Count; w.State.Onboarded=false;
     app.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle,new Action(()=> {
