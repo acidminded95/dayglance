@@ -541,7 +541,7 @@ namespace Dayglance {
      var heading=section("THEME"); ((FrameworkElement)heading).Margin=new Thickness(0,8,0,6); p.Children.Add(heading);
      var themeGrid=new UniformGrid { Columns=2,Margin=new Thickness(0,2,0,8) };
      foreach(var theme in UI.AvailableThemes(State)) {
-      var info=new StackPanel(); var name=UI.Label(theme.Name,13,UI.B(theme.Foreground)); name.Margin=new Thickness(0,0,0,9); info.Children.Add(name);
+      var info=new StackPanel(); var name=UI.Label(UI.T(theme.Name),13,UI.B(theme.Foreground)); name.Margin=new Thickness(0,0,0,9); info.Children.Add(name);
       var swatches=UI.Row(); foreach(string hex in new[]{theme.Background,theme.Surface,theme.Foreground,theme.Accent}) swatches.Children.Add(new Border { Background=UI.B(hex),Width=24,Height=13,CornerRadius=new CornerRadius(4),Margin=new Thickness(0,0,5,0),BorderBrush=UI.B(theme.Line),BorderThickness=new Thickness(1) }); info.Children.Add(swatches);
       bool chosen=theme.Id==themeId;
       var tile=new Border { Child=info,Background=UI.B(theme.Surface),Padding=new Thickness(10),Margin=new Thickness(0,0,8,8),CornerRadius=new CornerRadius(10),BorderBrush=chosen?UI.Accent:UI.Line,BorderThickness=new Thickness(chosen?3:1) };

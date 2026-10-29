@@ -114,7 +114,7 @@ namespace Dayglance {
    foreach(var t in s.CustomThemes) {
     if(t==null || string.IsNullOrWhiteSpace(t.Id) || !t.Id.StartsWith("custom-") || !themeIds.Add(t.Id) || string.IsNullOrWhiteSpace(t.Name) || t.Name.Length>40 || new[]{t.Background,t.Surface,t.Foreground,t.Muted,t.Accent,t.Hero,t.Line}.Any(c=>c==null||!System.Text.RegularExpressions.Regex.IsMatch(c,"^#[0-9A-Fa-f]{6}$"))) throw new Exception("Invalid custom theme.");
    }
-   if(!new[]{"midnight","terracotta","midcentury","paper","lavender","cyberpunk"}.Contains(s.Theme) && !themeIds.Contains(s.Theme)) s.Theme="midnight";
+   if(!new[]{"midnight","terracotta","midcentury","paper","lavender","cyberpunk","ocean","rose","sky","graphite","honey","espresso"}.Contains(s.Theme) && !themeIds.Contains(s.Theme)) s.Theme="midnight";
    if(s.Language!="es") s.Language="en";
    if(double.IsNaN(s.Left)||double.IsInfinity(s.Left)) s.Left=80;
    if(double.IsNaN(s.Top)||double.IsInfinity(s.Top)) s.Top=80;

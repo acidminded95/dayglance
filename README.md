@@ -73,12 +73,20 @@ Select repeat-day pills or Every day, Weekdays, or Once. The custom calendar is 
 
 Open **Settings / Ajustes**. Its tabs group **Appearance** (theme, text size, language), **Schedule** (12- or 24-hour time, card style, current-activity highlight), **Reminders** (reminders, sound, startup) and **Data** (import/export). The settings window previews your choices, including **Test reminder**, and the widget changes only when you save preferences. Closing without saving discards the preview.
 
-- **Midnight mint:** charcoal and mint.
-- **Terracotta:** clay, cream, and soft greens.
-- **Midcentury:** dark green and orange.
-- **Horario · paper & sage:** paper, sage, and pink, inspired by the image.
-- **Lavender dusk:** deep purple and lavender.
-- **Cyberpunk:** near-black and orange.
+Twelve built-in themes, six dark and six light. Names are translated when the app is in Spanish.
+
+- **Midnight mint / Menta nocturna:** charcoal and mint.
+- **Terracotta garden / Jardín terracota:** clay, cream, and soft greens.
+- **Midcentury forest / Bosque retro:** dark green and orange.
+- **Paper sage / Papel y salvia:** paper, sage, and pink, inspired by the image.
+- **Lavender dusk / Atardecer lavanda:** deep purple and lavender.
+- **Cyberpunk ember / Brasa cyberpunk:** near-black and orange.
+- **Ocean aqua / Océano aguamarina:** deep navy and aqua.
+- **Morning rose / Rosa matinal:** blush, plum, and raspberry.
+- **Nordic sky / Cielo nórdico:** cool white, slate, and blue.
+- **Graphite lime / Grafito y lima:** graphite and lime.
+- **Honey linen / Lino y miel:** linen, brown, and honey.
+- **Espresso cream / Espresso y crema:** dark roast and caramel.
 
 **Create theme / Crear tema** edits four colors with a color picker: **background, cards, text and accent**. Highlight, secondary text and lines are derived from them. The creator offers palette ideas, **Surprise me**, per-color **Suggest** links, accent suggestions, a live mini-widget preview and contrast ratings. *Match cards and text to the background* keeps those two in step while you explore. Select a custom theme to **Edit** or **Delete** it. Up to 24 custom themes are supported. Activity colors remain independent of interface themes.
 
@@ -96,7 +104,7 @@ Open **Settings / Ajustes**. Its tabs group **Appearance** (theme, text size, la
 
 Use **Settings → Import / Ajustes → Importar** for schedule JSON. Import confirms replacement and saves a timestamped backup first. Local theme, language, notification, and view settings are preserved. Custom themes from the file merge by ID. Export includes activities, notes, completion/reminder history, and custom themes.
 
-The personal `Horario-2027-1.json` is supplied separately, not embedded in releases. Select **Español**, **Horario · paper & sage**, and **Week / Semana** for the image-inspired view. Its activity reminders are off for testing.
+The personal `Horario-2027-1.json` is supplied separately, not embedded in releases. Select **Español**, **Paper sage / Papel y salvia**, and **Week / Semana** for the image-inspired view. Its activity reminders are off for testing.
 
 Share the release link or ZIP with friends: it contains no personal schedule data. Each person has separate local storage. Send exported JSON separately only when you want to share its contents.
 
@@ -117,7 +125,7 @@ Each successful save retains the previous file as `schedule.json.bak`. If data i
 
 - `Dayglance.exe --self-test`: schedule, reminder, validation, palette, clock format, release-version and persistence checks.
 - `Dayglance.exe --ui-test`: controls, editor, welcome tour, themes and theme creator, Spanish, window sizing, mini widget, narrow week scrolling, backup and notifications.
-- `Dayglance.exe --showcase <schedule.json>`: rendering checks across all six themes, with screenshots beside the executable.
+- `Dayglance.exe --showcase <schedule.json>`: rendering checks across all built-in themes, with screenshots beside the executable.
 - `Dayglance.exe --first-run`: opens the app with a throwaway empty schedule to try the welcome tour; your real schedule isn't touched.
 - `Dayglance.exe --screenshots docs\sample-schedule.json docs\screenshots`: regenerates the README screenshots (plus `welcome-tour.png` and `welcome-tour-when.png` from the welcome tour) from the sample schedule at a fixed date and time (run from the repository root).
 

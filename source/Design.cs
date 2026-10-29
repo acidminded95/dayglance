@@ -17,11 +17,17 @@ namespace Dayglance {
  public static partial class UI {
   public static readonly Theme[] Themes={
    new Theme("midnight","Midnight mint","#11151D","#1C2330","#EDF2FA","#A4B0C4","#A4E9CC","#202D32","#354052"),
-   new Theme("terracotta","Terracotta","#F4E8DE","#FFF8F1","#314D3D","#6B6251","#9C442E","#D4DFCA","#B5BBA2"),
-   new Theme("midcentury","Midcentury","#142D27","#203E34","#F5ECD8","#C1CCB4","#FFAE65","#304A37","#496450"),
-   new Theme("paper","Horario · paper & sage","#F5F1EA","#FFFDF9","#294B3D","#74634D","#365D4B","#F0DDE1","#CDB5BC"),
+   new Theme("terracotta","Terracotta garden","#F4E8DE","#FFF8F1","#314D3D","#6B6251","#9C442E","#D4DFCA","#B5BBA2"),
+   new Theme("midcentury","Midcentury forest","#142D27","#203E34","#F5ECD8","#C1CCB4","#FFAE65","#304A37","#496450"),
+   new Theme("paper","Paper sage","#F5F1EA","#FFFDF9","#294B3D","#74634D","#365D4B","#F0DDE1","#CDB5BC"),
    new Theme("lavender","Lavender dusk","#211F33","#302B46","#F2EDFF","#BDB2D5","#D5BEFF","#3B3151","#574B6D"),
-   new Theme("cyberpunk","Cyberpunk","#080808","#17110D","#FFF2DF","#C6A98D","#FF8C24","#33200F","#704118")
+   new Theme("cyberpunk","Cyberpunk ember","#080808","#17110D","#FFF2DF","#C6A98D","#FF8C24","#33200F","#704118"),
+   new Theme("ocean","Ocean aqua","#0E1E2B","#16293A","#E6F1F7","#9DB3C4","#5FD3E0","#173445","#2A4357"),
+   new Theme("rose","Morning rose","#FBEFEF","#FFF8F7","#4A2A33","#7A5E64","#A8344F","#F3D9DE","#E0BEC5"),
+   new Theme("sky","Nordic sky","#EEF3F8","#FAFCFE","#1F3347","#55677A","#2B67A8","#DCE7F3","#C3D2E2"),
+   new Theme("graphite","Graphite lime","#18191B","#232528","#F2F2F0","#A9ACB0","#C8F25A","#2A2F22","#3A3D42"),
+   new Theme("honey","Honey linen","#FAF4E4","#FFFCF3","#3B3222","#6B604C","#935C00","#F1E2B8","#DCCDA5"),
+   new Theme("espresso","Espresso cream","#1E1714","#2A211C","#F4EADF","#BFAE9E","#E3B07A","#36291F","#4A3A2E")
   };
   public static Brush Hero=B("#202D32"), Line=B("#354052");
   public static string Language="en";
@@ -64,7 +70,8 @@ namespace Dayglance {
    {"A checklist can have up to 30 items, each with 1–200 characters.","Una lista admite hasta 30 elementos de 1 a 200 caracteres cada uno."},
    {"No activities yet. Close this window and choose + Activity.","Aún no hay actividades. Cierra esta ventana y pulsa + Actividad."},
    {"Dayglance settings","Ajustes de Dayglance"},{"Set your own pace.","A tu propio ritmo."},{"APPEARANCE","APARIENCIA"},{"LANGUAGE","IDIOMA"},{"REMINDERS & STARTUP","AVISOS E INICIO"},
-   {"Midnight mint","Menta nocturna"},{"Terracotta","Terracota"},{"Midcentury","Mediados de siglo"},{"Horario · paper & sage","Horario · papel y salvia"},{"Lavender dusk","Atardecer lavanda"},
+   {"Midnight mint","Menta nocturna"},{"Terracotta garden","Jardín terracota"},{"Midcentury forest","Bosque retro"},{"Paper sage","Papel y salvia"},{"Lavender dusk","Atardecer lavanda"},{"Cyberpunk ember","Brasa cyberpunk"},
+   {"Ocean aqua","Océano aguamarina"},{"Morning rose","Rosa matinal"},{"Nordic sky","Cielo nórdico"},{"Graphite lime","Grafito y lima"},{"Honey linen","Lino y miel"},{"Espresso cream","Espresso y crema"},
    {"Enable activity reminders","Activar recordatorios"},{"Play a sound with reminders","Reproducir un sonido"},{"Start when I sign in to Windows","Abrir al iniciar sesión en Windows"},
    {"Reminders work while Dayglance is running, including in the tray. Windows Do Not Disturb can silence them. The × button hides the widget; right-click the tray icon to quit.","Los avisos funcionan mientras Dayglance esté abierto, incluso en la bandeja. No molestar de Windows puede silenciarlos. × oculta el widget; haz clic derecho en su icono para salir."},
    {"Save preferences","Guardar preferencias"},{"Could not save preferences","No se pudieron guardar los ajustes"},{"BACKUP & SHARING","RESPALDOS Y ARCHIVOS"},
