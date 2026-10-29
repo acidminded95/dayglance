@@ -31,6 +31,7 @@ namespace Dayglance {
  }
  public class TimeField : StackPanel {
   Choice hours=new Choice(),minutes=new Choice();
+  public event Action Changed; // user picked an hour or minute; setting Value does not raise it
   public string Value {
    get { return hours.Items[hours.SelectedIndex]+":"+minutes.Items[minutes.SelectedIndex]; }
    set { var time=Schedule.Time(value); hours.SelectedIndex=time.Hours; string minute=time.Minutes.ToString("00"); if(!minutes.Items.Contains(minute)) { minutes.Items.Add(minute); minutes.Items.Sort(); } minutes.SelectedIndex=minutes.Items.IndexOf(minute); }
@@ -39,6 +40,7 @@ namespace Dayglance {
    Orientation=Orientation.Horizontal; hours.Width=UI.Hour12?108:78; minutes.Width=78; hours.Display=h=>UI.Hour12?UI.HourLabel(int.Parse(h)):h; minutes.Display=m=>m;
    hours.Items.AddRange(Enumerable.Range(0,24).Select(n=>n.ToString("00"))); minutes.Items.AddRange(Enumerable.Range(0,12).Select(n=>(n*5).ToString("00")));
    Children.Add(hours); var colon=UI.Label(":",18,UI.Muted); colon.Margin=new Thickness(0,6,5,0); Children.Add(colon); Children.Add(minutes); Value=value;
+   Action raise=()=> { var handler=Changed; if(handler!=null) handler(); }; hours.Changed+=raise; minutes.Changed+=raise;
   }
  }
  public static partial class Palette {

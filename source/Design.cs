@@ -72,6 +72,7 @@ namespace Dayglance {
    {"Dayglance settings","Ajustes de Dayglance"},{"Set your own pace.","A tu propio ritmo."},{"APPEARANCE","APARIENCIA"},{"LANGUAGE","IDIOMA"},{"REMINDERS & STARTUP","AVISOS E INICIO"},
    {"Midnight mint","Menta nocturna"},{"Terracotta garden","Jardín terracota"},{"Midcentury forest","Bosque retro"},{"Paper sage","Papel y salvia"},{"Lavender dusk","Atardecer lavanda"},{"Cyberpunk ember","Brasa cyberpunk"},
    {"Ocean aqua","Océano aguamarina"},{"Morning rose","Rosa matinal"},{"Nordic sky","Cielo nórdico"},{"Graphite lime","Grafito y lima"},{"Honey linen","Lino y miel"},{"Espresso cream","Espresso y crema"},
+   {"DURATION","DURACIÓN"},{"Drag to reorder","Arrastra para reordenar"},
    {"Enable activity reminders","Activar recordatorios"},{"Play a sound with reminders","Reproducir un sonido"},{"Start when I sign in to Windows","Abrir al iniciar sesión en Windows"},
    {"Reminders work while Dayglance is running, including in the tray. Windows Do Not Disturb can silence them. The × button hides the widget; right-click the tray icon to quit.","Los avisos funcionan mientras Dayglance esté abierto, incluso en la bandeja. No molestar de Windows puede silenciarlos. × oculta el widget; haz clic derecho en su icono para salir."},
    {"Save preferences","Guardar preferencias"},{"Could not save preferences","No se pudieron guardar los ajustes"},{"BACKUP & SHARING","RESPALDOS Y ARCHIVOS"},

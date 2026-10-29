@@ -61,13 +61,13 @@ To see the first-launch experience on a PC that already has a schedule, run `Day
 
 ## Activities
 
-Choose start/end hours and minutes from menus. Minutes use five-minute intervals; imported nonstandard minutes are preserved as extra choices. An earlier end means the next day. Equal start/end times are rejected.
+Choose start/end hours and minutes from menus. A new activity starts at the next :00 or :30 and lasts an hour. **Duration** offers 15 min to 3 h presets and keeps the end in step when you change the start; picking an end time shows the resulting duration. Minutes use five-minute intervals; imported nonstandard minutes are preserved as extra choices. An earlier end means the next day. Equal start/end times are rejected.
 
 Pick a color from the presets and every color already in your schedule, or use **+** to open the color picker for a custom color.
 
-Select repeat-day pills or Every day, Weekdays, or Once. The custom calendar is enabled for one-time activities. Editing a repeating activity changes its whole series, including past views. Single-occurrence overrides are not supported.
+Select repeat-day pills or Every day, Weekdays, or Once; the matching preset is highlighted, so a new activity starts on Once. The custom calendar is enabled for one-time activities. Editing a repeating activity changes its whole series, including past views. Single-occurrence overrides are not supported.
 
-**Checklist (optional):** add up to 30 items, such as things to bring or steps to finish. Tick them right on the day card; the time line, week view tooltip, Right now card and mini widget show progress (✓ 2/5), and a reminder lists what is still open. Ticks belong to that day's occurrence: a repeating activity comes around again with a fresh list, while a one-time activity keeps its ticks. Ticking every item does not mark the activity done; use the circle button for that.
+**Checklist (optional):** add up to 30 items, such as things to bring or steps to finish. Drag an item by its grip, or press Alt+↑/↓ while typing in it, to reorder. Tick them right on the day card; the time line, week view tooltip, Right now card and mini widget show progress (✓ 2/5), and a reminder lists what is still open. Ticks belong to that day's occurrence: a repeating activity comes around again with a fresh list, while a one-time activity keeps its ticks. Ticking every item does not mark the activity done; use the circle button for that.
 
 ## Themes and language
 

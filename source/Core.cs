@@ -71,6 +71,11 @@ namespace Dayglance {
  }
  public static class Schedule {
   public const int MaxChecklist=30;
+  // New activities start at the next :00 or :30 after now.
+  public static DateTime NextHalfHour(DateTime now) { return now.Date.AddHours(now.Hour).AddMinutes(now.Minute<30?30:60); }
+  // Minutes from start to end; an earlier end finishes the following day.
+  public static int DurationMinutes(string start,string end) { int d=(int)(Time(end)-Time(start)).TotalMinutes; return d<=0?d+1440:d; }
+  public static string AddMinutes(string start,int minutes) { return DateTime.Today.Add(Time(start)).AddMinutes(minutes).ToString("HH:mm",CultureInfo.InvariantCulture); }
   public static TimeSpan Time(string s) { TimeSpan value; if(!TimeSpan.TryParseExact(s,"hh\\:mm",CultureInfo.InvariantCulture,out value)) throw new Exception("Use HH:MM, between 00:00 and 23:59."); return value; }
   public static List<Occurrence> ForDay(State state, DateTime day) {
    var result=new List<Occurrence>(); day=day.Date;

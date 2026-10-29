@@ -17,6 +17,8 @@ namespace Dayglance {
     var monday=new DateTime(2026,9,14); var overnight=Schedule.ForDay(s,monday.AddDays(1));
     Check(overnight.Count==1 && overnight[0].Start==monday.AddHours(23) && overnight[0].End==monday.AddDays(1).AddHours(1),"overnight carries into next day");
     Check(Schedule.ForDay(s,monday.AddDays(2)).Count==0,"repeat excludes wrong day");
+    Check(Schedule.NextHalfHour(monday.AddHours(9).AddMinutes(10))==monday.AddHours(9.5) && Schedule.NextHalfHour(monday.AddHours(9).AddMinutes(30))==monday.AddHours(10) && Schedule.NextHalfHour(monday.AddHours(23).AddMinutes(45))==monday.AddDays(1),"new activities start at the next half hour");
+    Check(Schedule.DurationMinutes("09:00","10:30")==90 && Schedule.DurationMinutes("23:00","01:00")==120 && Schedule.AddMinutes("23:30",60)=="00:30","durations wrap past midnight");
     Check(Schedule.Due(s,monday.AddHours(22).AddMinutes(44)).Count==0,"not early");
     Check(Schedule.Due(s,monday.AddHours(22).AddMinutes(45)).Count==1,"lead reminder boundary");
     Check(Schedule.Due(s,monday.AddDays(1).AddMinutes(30)).Count==1,"catch up after wake while active");
@@ -83,8 +85,10 @@ namespace Dayglance {
     var w=new MainWindow(new State(),true); w.ShowInTaskbar=false; w.ShowActivated=false; w.Show(); w.UpdateLayout();
     app.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle,new Action(()=> {
      var dialog=app.Windows.Cast<Window>().First(x=>x!=w); dialog.UpdateLayout();
-     var inputs=Descendants<TextBox>(dialog).ToList(); inputs[0].Text="Study & plan"; inputs.Last().Text="A calm block for focused work."; var times=Descendants<TimeField>(dialog).ToList(); times[0].Value="09:00"; times[1].Value="10:30";
-     Click(dialog,"Weekdays"); var date=Descendants<DateField>(dialog).First(); Check(!date.IsEnabled,"date disabled for repeat"); Click(dialog,"Once"); Check(date.IsEnabled,"date enabled for single date");
+     var inputs=Descendants<TextBox>(dialog).ToList(); inputs[0].Text="Study & plan"; inputs.Last().Text="A calm block for focused work."; var times=Descendants<TimeField>(dialog).ToList(); Check(Schedule.DurationMinutes(times[0].Value,times[1].Value)==60 && times[0].Value.EndsWith("0"),"new activity defaults to one hour from the next half hour");
+     Func<string,bool> highlighted=text=>Descendants<Button>(dialog).First(b=>Convert.ToString(b.Content)==text).Background==UI.Accent; Check(highlighted("Once") && !highlighted("Weekdays"),"Once is preselected for a new activity");
+     times[0].Value="09:00"; times[1].Value="10:30";
+     Click(dialog,"Weekdays"); var date=Descendants<DateField>(dialog).First(); Check(!date.IsEnabled,"date disabled for repeat"); Check(highlighted("Weekdays") && !highlighted("Once"),"picking days deselects Once"); Click(dialog,"Once"); Check(date.IsEnabled,"date enabled for single date");
      app.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle,new Action(()=> { var calendar=app.Windows.Cast<Window>().First(x=>x!=w&&x!=dialog); Capture(calendar,"calendar-preview"); Click(calendar,"Today"); })); Descendants<Button>(date).First().RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Check(date.SelectedDate==DateTime.Today,"calendar selects today"); Click(dialog,"Weekdays");
      var reminder=Descendants<CheckBox>(dialog).First(c=>Convert.ToString(c.Content)=="Remind me when it starts"); Check(reminder.IsChecked==true,"start reminder on by default");
      var extra=Descendants<CheckBox>(dialog).First(c=>Convert.ToString(c.Content)=="Additional reminder"); extra.IsChecked=true; inputs=Descendants<TextBox>(dialog).ToList(); inputs[1].Text="1"; inputs[2].Text="2"; inputs[3].Text="30";
