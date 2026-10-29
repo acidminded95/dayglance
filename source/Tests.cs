@@ -127,7 +127,7 @@ namespace Dayglance {
     var incoming=new State(); incoming.Activities.Add(new Activity { Id="imported",Title="Prueba",Start="12:00",End="13:00",Days=new[]{1},Color="#AABBCC",Reminder=-1 }); w.ImportState(incoming); Check(w.State.Activities.Single().Title=="Prueba" && w.State.Theme.StartsWith("custom-") && w.State.Language=="es","import preserves local design preferences"); Check(Directory.GetFiles(Storage.Folder,"before-import-*.json").Length==1,"import creates safety backup");
     // Goals (Spanish): no pills until a goal is set, one pill per span with goals, merged into one pill on a narrow window.
     Click(w,"Semana"); Click(w,"Hoy"); w.Width=1200; w.UpdateLayout(); w.Refresh(true); w.UpdateLayout();
-    Func<string,bool> goalPill=tip=> { w.UpdateLayout(); return Descendants<Button>(w).Any(b=>b.IsVisible && Convert.ToString(b.ToolTip).StartsWith(tip+" ·")); };
+    Func<string,bool> goalPill=tip=> { w.UpdateLayout(); return Descendants<Button>(w).Any(b=>b.IsVisible && (Convert.ToString(b.ToolTip)==tip || Convert.ToString(b.ToolTip).StartsWith(tip+" ·"))); };
     Check(!goalPill("Metas de la semana") && Descendants<Button>(w).Any(b=>b.IsVisible && Convert.ToString(b.Content)=="+ Meta"),"no goal pills until a goal is set");
     w.State.Goals.Add(new Goal { Id="gw",Text="Leer 50 páginas",Period=GoalPlan.Period("week",AppClock.Today) }); w.State.Goals.Add(new Goal { Id="gy",Text="Correr un medio maratón",Period=GoalPlan.Period("year",AppClock.Today),Done=true }); w.Refresh(true);
     Check(goalPill("Metas de la semana · 0/1") && goalPill("Metas del año · 1/1") && !goalPill("Metas del mes") && !goalPill("Metas del trimestre") && !w.GoalsMerged,"only spans with goals get a pill");
