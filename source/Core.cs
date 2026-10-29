@@ -55,7 +55,7 @@ namespace Dayglance {
   public bool AutoUpdateCheck { get; set; }
   public string WeekHighlight { get; set; }
   public bool Onboarded { get; set; } // the welcome tour was finished or skipped
-  public State() { Version=1; Activities=new List<Activity>(); Completed=new List<string>(); Reminded=new List<string>(); CustomThemes=new List<Theme>(); Notifications=true; Pinned=true; Left=80; Top=80; Theme="midnight"; Language="en"; CardStyle="stripe"; WeekHighlight="line"; UiScale=1; TimeFormat="24"; AutoUpdateCheck=true; }
+  public State() { Version=1; Activities=new List<Activity>(); Completed=new List<string>(); Reminded=new List<string>(); CustomThemes=new List<Theme>(); Notifications=true; Pinned=false; Left=80; Top=80; Theme="midnight"; Language="en"; CardStyle="stripe"; WeekHighlight="line"; UiScale=1; TimeFormat="24"; AutoUpdateCheck=true; }
  }
  public class Occurrence {
   public Activity Activity;
@@ -71,6 +71,11 @@ namespace Dayglance {
  }
  public static class Schedule {
   public const int MaxChecklist=30;
+  // New activities start at the next :00 or :30 after now.
+  public static DateTime NextHalfHour(DateTime now) { return now.Date.AddHours(now.Hour).AddMinutes(now.Minute<30?30:60); }
+  // Minutes from start to end; an earlier end finishes the following day.
+  public static int DurationMinutes(string start,string end) { int d=(int)(Time(end)-Time(start)).TotalMinutes; return d<=0?d+1440:d; }
+  public static string AddMinutes(string start,int minutes) { return DateTime.Today.Add(Time(start)).AddMinutes(minutes).ToString("HH:mm",CultureInfo.InvariantCulture); }
   public static TimeSpan Time(string s) { TimeSpan value; if(!TimeSpan.TryParseExact(s,"hh\\:mm",CultureInfo.InvariantCulture,out value)) throw new Exception("Use HH:MM, between 00:00 and 23:59."); return value; }
   public static List<Occurrence> ForDay(State state, DateTime day) {
    var result=new List<Occurrence>(); day=day.Date;
@@ -114,7 +119,7 @@ namespace Dayglance {
    foreach(var t in s.CustomThemes) {
     if(t==null || string.IsNullOrWhiteSpace(t.Id) || !t.Id.StartsWith("custom-") || !themeIds.Add(t.Id) || string.IsNullOrWhiteSpace(t.Name) || t.Name.Length>40 || new[]{t.Background,t.Surface,t.Foreground,t.Muted,t.Accent,t.Hero,t.Line}.Any(c=>c==null||!System.Text.RegularExpressions.Regex.IsMatch(c,"^#[0-9A-Fa-f]{6}$"))) throw new Exception("Invalid custom theme.");
    }
-   if(!new[]{"midnight","terracotta","midcentury","paper","lavender","cyberpunk"}.Contains(s.Theme) && !themeIds.Contains(s.Theme)) s.Theme="midnight";
+   if(!new[]{"midnight","terracotta","midcentury","paper","lavender","cyberpunk","ocean","rose","sky","graphite","honey","espresso"}.Contains(s.Theme) && !themeIds.Contains(s.Theme)) s.Theme="midnight";
    if(s.Language!="es") s.Language="en";
    if(double.IsNaN(s.Left)||double.IsInfinity(s.Left)) s.Left=80;
    if(double.IsNaN(s.Top)||double.IsInfinity(s.Top)) s.Top=80;
