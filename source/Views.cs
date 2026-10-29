@@ -247,7 +247,7 @@ namespace Dayglance {
     if(height>=39) { var time=UI.Label(UI.Clock(o.Start)+"–"+UI.Clock(o.End)+ChecklistProgress(o),9,UI.Ink(o.Activity.Color)); time.Margin=new Thickness(0); text.Children.Add(time); }
     var card=new Border { Child=text,Width=Math.Max(8,laneWidth-2),Height=height,Padding=new Thickness(4,height<25?1:3,3,1),Background=UI.B(o.Activity.Color),CornerRadius=new CornerRadius(5),BorderBrush=current?UI.Text:UI.B(o.Activity.Color),BorderThickness=new Thickness(current?2:0),Opacity=done?0.58:0.95,ClipToBounds=true,Cursor=Cursors.Hand };
     card.ToolTip=o.Activity.Title+"\n"+o.Start.ToString("ddd ",UI.Culture)+UI.Clock(o.Start)+"–"+o.End.ToString("ddd ",UI.Culture)+UI.Clock(o.End)+(string.IsNullOrWhiteSpace(o.Activity.Notes)?"":"\n"+o.Activity.Notes)+string.Concat(o.Activity.Checklist.Select(i=>"\n"+(State.Checked.Contains(o.ItemKey(i))?"✓ ":"○ ")+i.Text))+"\n"+UI.T("Edit activity");
-    card.MouseLeftButtonUp+=(s,e)=> { e.Handled=true; Edit(o.Activity); }; double cardLeft=d*column+3+block.Lane*laneWidth,cardTop=block.StartHour*rowHeight+1;
+    card.MouseLeftButtonUp+=(s,e)=> { e.Handled=true; ShowDetails(o); }; double cardLeft=d*column+3+block.Lane*laneWidth,cardTop=block.StartHour*rowHeight+1;
     if(current && !done) {
      // Accent ring drawn just outside the card so it never covers the title. In "line" mode it stays invisible until a Right now pulse.
      if(State.WeekHighlight!="line") card.BorderThickness=new Thickness(0);
@@ -323,7 +323,9 @@ namespace Dayglance {
   }
   readonly System.Collections.Generic.Dictionary<string,Border> dayCards=new System.Collections.Generic.Dictionary<string,Border>();
   // Builds one day-view card. style: "stripe" (slim line), "band" (colored time column) or "full" (whole card in the activity color).
-  Border DayCard(Occurrence o,DateTime now,string style,bool interactive) {
+  // edit replaces the default "open the editor" (the details card closes itself first); showEdit keeps the pencil visible instead of on hover.
+  Border DayCard(Occurrence o,DateTime now,string style,bool interactive,Action edit=null,bool showEdit=false) {
+   if(edit==null) edit=()=>Edit(o.Activity);
    bool done=State.Completed.Contains(o.Key),current=o.Start<=now&&o.End>now&&!done,band=style=="band",full=style=="full";
    string hex=o.Activity.Color; Brush color=UI.B(hex),ink=UI.Ink(hex);
    var row=new Grid(); row.ColumnDefinitions.Add(new ColumnDefinition { Width=band?new GridLength(66):full?new GridLength(0):new GridLength(6) }); row.ColumnDefinitions.Add(new ColumnDefinition()); row.ColumnDefinitions.Add(new ColumnDefinition { Width=GridLength.Auto });
@@ -346,10 +348,15 @@ namespace Dayglance {
    var toggle=UI.Button(done?"✓":"○",()=> { if(!interactive) return; if(State.Completed.Contains(o.Key)) State.Completed.Remove(o.Key); else State.Completed.Add(o.Key); Save(); Refresh(true); });
    toggle.ToolTip=UI.T(done?"Mark incomplete":"Mark done"); toggle.VerticalAlignment=VerticalAlignment.Center; if(band) toggle.Margin=new Thickness(0,0,10,0);
    if(full) { toggle.Background=new SolidColorBrush(Palette.IsDark(hex)?Color.FromArgb(46,255,255,255):Color.FromArgb(30,0,0,0)); toggle.Foreground=ink; }
-   Grid.SetColumn(toggle,2); row.Children.Add(toggle);
+   var actions=new StackPanel { Orientation=Orientation.Horizontal,VerticalAlignment=VerticalAlignment.Center }; Button pencil=null;
+   if(interactive) { pencil=UI.Icon("\uE70F","Edit activity",edit); pencil.FontSize=13; pencil.Margin=new Thickness(0,0,4,0); if(full) pencil.Foreground=ink; if(!showEdit) pencil.Visibility=Visibility.Hidden; actions.Children.Add(pencil); }
+   actions.Children.Add(toggle); Grid.SetColumn(actions,2); row.Children.Add(actions);
    var box=UI.Box(row,full?color:current?UI.Hero:UI.Card,new Thickness(0,0,0,8)); if(band) box.Padding=new Thickness(0);
    box.BorderThickness=new Thickness(current?2:1); box.BorderBrush=current?UI.Accent:full?color:UI.Card; if(full&&done) box.Opacity=.6; // the running activity is always outlined in the accent color
-   if(interactive) { box.MouseLeftButtonDown+=(s,e)=> { if(e.ClickCount==2) Edit(o.Activity); }; box.ToolTip=UI.T("Double-click to edit"); }
+   if(interactive) {
+    box.MouseLeftButtonDown+=(s,e)=> { if(e.ClickCount==2) { e.Handled=true; edit(); } }; box.ToolTip=UI.T("Double-click to edit");
+    if(!showEdit) { box.MouseEnter+=(s,e)=>pencil.Visibility=Visibility.Visible; box.MouseLeave+=(s,e)=>pencil.Visibility=Visibility.Hidden; }
+   }
    return box;
   }
   // Tickable sub-items on a day card. A tick belongs to this occurrence only, so a repeating activity starts each time with a fresh list.
@@ -360,13 +367,33 @@ namespace Dayglance {
     if(interactive) tick.Click+=(s,e)=> { Schedule.ToggleItem(State,o,entry); if(!Save()) Schedule.ToggleItem(State,o,entry); Refresh(true); }; else tick.IsHitTestVisible=false;
     if(!interactive || o.Activity.Checklist.Count<2) { panel.Children.Add(tick); continue; }
     // Same drag handle as the activity editor; the new order is saved for every occurrence.
-    var line=new DockPanel(); var grip=UI.Grip(line,panel,to=>MoveChecklistItem(o.Activity,entry,to),text); grip.Opacity=.55; DockPanel.SetDock(grip,Dock.Left); line.Children.Add(grip); line.Children.Add(tick); panel.Children.Add(line);
+    // The handle appears on hover; the item just dropped glows faintly so it is clear what moved.
+    var line=new DockPanel { Background=Brushes.Transparent }; var grip=UI.Grip(line,panel,to=>MoveChecklistItem(o.Activity,entry,to),text); grip.Opacity=0; DockPanel.SetDock(grip,Dock.Left); line.Children.Add(grip); line.Children.Add(tick); panel.Children.Add(line);
+    line.MouseEnter+=(s,e)=>grip.Opacity=.6; line.MouseLeave+=(s,e)=> { if(!grip.IsMouseCaptured) grip.Opacity=0; }; grip.LostMouseCapture+=(s,e)=> { if(!line.IsMouseOver) grip.Opacity=0; };
+    if(entry.Id==movedItemId) {
+     var tint=text as SolidColorBrush; var glow=new SolidColorBrush(tint==null?Colors.Gray:tint.Color) { Opacity=0 }; line.Background=glow;
+     glow.BeginAnimation(Brush.OpacityProperty,new System.Windows.Media.Animation.DoubleAnimationUsingKeyFrames { KeyFrames={ new System.Windows.Media.Animation.LinearDoubleKeyFrame(.16,TimeSpan.FromMilliseconds(120)),new System.Windows.Media.Animation.LinearDoubleKeyFrame(.16,TimeSpan.FromMilliseconds(500)),new System.Windows.Media.Animation.LinearDoubleKeyFrame(0,TimeSpan.FromMilliseconds(1300)) } });
+    }
    }
    return panel;
   }
   void MoveChecklistItem(Activity activity,ChecklistItem item,int to) {
    var list=activity.Checklist; int from=list.IndexOf(item); to=Math.Max(0,Math.Min(list.Count-1,to)); if(from<0 || from==to) return;
-   list.RemoveAt(from); list.Insert(to,item); if(!Save()) { list.Remove(item); list.Insert(from,item); } Refresh(true);
+   list.RemoveAt(from); list.Insert(to,item); if(!Save()) { list.Remove(item); list.Insert(from,item); } movedItemId=item.Id; Refresh(true); movedItemId=null;
+  }
+  string movedItemId; // set while the day list is rebuilt after a checklist drag
+  Action refreshed; // runs on every refresh while an activity details card is open
+  // Week view click: the activity as a Day-view card (checklist included) in a small window, with a pencil that switches to the editor.
+  void ShowDetails(Occurrence o) {
+   var w=UI.Dialog(this,o.Start.ToString("dddd, d MMMM",UI.Culture),440,200); w.LightDismiss=true; w.MinHeight=0; w.SizeToContent=SizeToContent.Height; w.MaxHeight=SystemParameters.WorkArea.Height*.85;
+   Action edit=()=> { w.Close(); Edit(o.Activity); };
+   Action build=()=> {
+    // The occurrence is looked up again so a change made elsewhere (or a deleted activity) shows up here.
+    var current=Schedule.ForDay(State,o.Start.Date).FirstOrDefault(x=>x.Key==o.Key); if(current==null) { w.Close(); return; }
+    var card=DayCard(current,AppClock.Now,State.CardStyle,true,edit,true); card.Margin=new Thickness(0);
+    w.Content=new ScrollViewer { Content=new Border { Child=card,Margin=new Thickness(18,4,18,18) },VerticalScrollBarVisibility=ScrollBarVisibility.Auto };
+   };
+   build(); refreshed=build; w.Closed+=(s,e)=> { if(refreshed==build) refreshed=null; }; w.ShowDialog();
   }
   // "  ·  ✓ 2/5" after an activity's time, when it has a checklist.
   string ChecklistProgress(Occurrence o) { int total=o.Activity.Checklist.Count; return total==0?"":"  ·  ✓ "+Schedule.CheckedCount(State,o)+"/"+total; }

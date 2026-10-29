@@ -30,20 +30,31 @@ namespace Dayglance {
   }
  }
  public static partial class UI {
-  // A handle that drags its row within a vertical panel: the row follows the pointer, and dropped receives its new index among the panel's children.
+  // A handle that drags its row within a vertical panel. The row follows the pointer while the rows it passes slide out of its way,
+  // and on release it settles into its new place; dropped receives the new index among the panel's children.
   public static FrameworkElement Grip(FrameworkElement row,Panel list,Action<int> dropped,Brush color) {
-   var grip=new TextBlock { Text="\uE76F",FontFamily=new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),FontSize=12,Foreground=color,Width=22,VerticalAlignment=VerticalAlignment.Center,Cursor=Cursors.SizeNS,Background=Brushes.Transparent,ToolTip=T("Drag to reorder") };
-   double grabY=0; var shift=new TranslateTransform(); row.RenderTransform=shift;
-   grip.MouseLeftButtonDown+=(s,e)=> { grabY=e.GetPosition(list).Y; Panel.SetZIndex(row,1); row.Opacity=.85; grip.CaptureMouse(); e.Handled=true; };
-   grip.MouseMove+=(s,e)=> { if(grip.IsMouseCaptured) shift.Y=e.GetPosition(list).Y-grabY; };
-   grip.LostMouseCapture+=(s,e)=> { shift.Y=0; Panel.SetZIndex(row,0); row.Opacity=1; };
+   var grip=new TextBlock { Text="",FontFamily=new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),FontSize=12,Foreground=color,Width=22,VerticalAlignment=VerticalAlignment.Center,Cursor=Cursors.SizeNS,Background=Brushes.Transparent,ToolTip=T("Drag to reorder") };
+   double grabY=0,step=0; int from=0; bool dropping=false; var shift=Shift(row); var targets=new Dictionary<UIElement,double>();
+   // Layout positions ignore the slide transforms, so the drop index does not flicker while rows move.
+   Func<int> dropIndex=()=> { double middle=VisualTreeHelper.GetOffset(row).Y+shift.Y+row.ActualHeight/2; int to=0; foreach(FrameworkElement other in list.Children) if(other!=row && middle>VisualTreeHelper.GetOffset(other).Y+other.ActualHeight/2) to++; return to; };
+   Action<UIElement,double> slide=(element,y)=> { double current; if(targets.TryGetValue(element,out current) && current==y) return; targets[element]=y; Settle(Shift(element),y,140); };
+   Action release=()=> { foreach(UIElement other in list.Children) if(other!=row) { var t=Shift(other); t.BeginAnimation(TranslateTransform.YProperty,null); t.Y=0; } targets.Clear(); Panel.SetZIndex(row,0); row.Opacity=1; };
+   grip.MouseLeftButtonDown+=(s,e)=> { from=list.Children.IndexOf(row); step=row.ActualHeight+row.Margin.Top+row.Margin.Bottom; grabY=e.GetPosition(list).Y; Panel.SetZIndex(row,1); row.Opacity=.9; grip.CaptureMouse(); e.Handled=true; };
+   grip.MouseMove+=(s,e)=> {
+    if(!grip.IsMouseCaptured) return; shift.BeginAnimation(TranslateTransform.YProperty,null); shift.Y=e.GetPosition(list).Y-grabY; int to=dropIndex();
+    for(int i=0;i<list.Children.Count;i++) if(list.Children[i]!=row) slide(list.Children[i],from<to && i>from && i<=to?-step:to<from && i>=to && i<from?step:0);
+   };
+   grip.LostMouseCapture+=(s,e)=> { if(dropping) return; release(); Settle(shift,0,140); };
    grip.MouseLeftButtonUp+=(s,e)=> {
-    if(!grip.IsMouseCaptured) return; e.Handled=true; double middle=row.TranslatePoint(new Point(0,0),list).Y+row.ActualHeight/2; int to=0;
-    foreach(FrameworkElement other in list.Children) if(other!=row && middle>other.TranslatePoint(new Point(0,0),list).Y+other.ActualHeight/2) to++;
-    grip.ReleaseMouseCapture(); dropped(to);
+    if(!grip.IsMouseCaptured) return; e.Handled=true; int to=dropIndex(); double shown=VisualTreeHelper.GetOffset(row).Y+shift.Y;
+    dropping=true; grip.ReleaseMouseCapture(); dropping=false; release(); dropped(to);
+    // A row that stays in the panel glides from where it was let go into its new slot; a rebuilt list highlights the moved item instead.
+    if(list.Children.Contains(row)) { list.UpdateLayout(); shift.BeginAnimation(TranslateTransform.YProperty,null); shift.Y=shown-VisualTreeHelper.GetOffset(row).Y; Settle(shift,0,180); }
    };
    return grip;
   }
+  static TranslateTransform Shift(UIElement element) { var t=element.RenderTransform as TranslateTransform; if(t==null) { t=new TranslateTransform(); element.RenderTransform=t; } return t; }
+  static void Settle(TranslateTransform t,double y,int ms) { t.BeginAnimation(TranslateTransform.YProperty,new System.Windows.Media.Animation.DoubleAnimation(y,TimeSpan.FromMilliseconds(ms)) { EasingFunction=new System.Windows.Media.Animation.CubicEase { EasingMode=System.Windows.Media.Animation.EasingMode.EaseOut } }); }
  }
  public class TimeField : StackPanel {
   Choice hours=new Choice(),minutes=new Choice();
@@ -87,9 +98,15 @@ namespace Dayglance {
  public partial class MainWindow {
   // With "Sync with system", the widget follows Windows when its app mode switches between light and dark.
   bool systemLight=UI.SystemLight();
-  void OnSystemPreference(object sender,Microsoft.Win32.UserPreferenceChangedEventArgs e) {
-   Dispatcher.BeginInvoke(new Action(()=> { bool light=UI.SystemLight(); if(light==systemLight) return; systemLight=light; if(State.ThemeMode=="system" && !settingsOpen) BuildView(); }));
+  DispatcherTimer systemThemeTimer; int systemThemeChecks;
+  // Windows can announce the change before the new mode is readable, so look again every half second for a few seconds.
+  void OnSystemPreference(object sender,Microsoft.Win32.UserPreferenceChangedEventArgs e) { Dispatcher.BeginInvoke(new Action(WatchSystemTheme)); }
+  void WatchSystemTheme() {
+   CheckSystemTheme(); systemThemeChecks=8;
+   if(systemThemeTimer==null) { systemThemeTimer=new DispatcherTimer { Interval=TimeSpan.FromMilliseconds(500) }; systemThemeTimer.Tick+=(s,e)=> { CheckSystemTheme(); if(--systemThemeChecks<=0) systemThemeTimer.Stop(); }; }
+   systemThemeTimer.Stop(); systemThemeTimer.Start();
   }
+  void CheckSystemTheme() { bool light=UI.SystemLight(); if(light==systemLight) return; systemLight=light; if(State.ThemeMode=="system" && !settingsOpen) BuildView(); }
   // Theme creator: four user-controlled colors (background, cards, text, accent) with live preview,
   // one-click palette ideas, per-color suggestions and contrast guidance. Derived colors (highlight,
   // secondary text, lines) are generated from those four.

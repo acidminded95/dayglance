@@ -147,7 +147,7 @@ namespace Dayglance {
    if(!preview) {
     tray=new Forms.NotifyIcon { Text="Dayglance — your day at a glance",Icon=BrandIcon.Make(),Visible=true }; tray.DoubleClick+=(s,e)=>Restore(); var menu=new Forms.ContextMenuStrip(); menu.Items.Add("Open Dayglance",null,(s,e)=>Restore()); menu.Items.Add("Add activity",null,(s,e)=> { Restore(); Edit(null); }); menu.Items.Add("Quit",null,(s,e)=> { exiting=true; Close(); }); tray.ContextMenuStrip=menu; tray.BalloonTipClicked+=(s,e)=>Restore();
     Closing+=(s,e)=> { PersistPosition(); if(!exiting) { e.Cancel=true; Hide(); } }; Closed+=(s,e)=> { timer.Stop(); tray.Dispose(); };
-    timer=new DispatcherTimer { Interval=TimeSpan.FromSeconds(10) }; timer.Tick+=(s,e)=> { Refresh(false); Notify(); }; timer.Start();
+    timer=new DispatcherTimer { Interval=TimeSpan.FromSeconds(10) }; timer.Tick+=(s,e)=> { CheckSystemTheme(); Refresh(false); Notify(); }; timer.Start();
 #if !STORE
     var updateTimer=new DispatcherTimer { Interval=TimeSpan.FromSeconds(30) }; updateTimer.Tick+=(s,e)=> { updateTimer.Interval=TimeSpan.FromHours(6); CheckForUpdates(false,null); }; updateTimer.Start();
 #endif
@@ -224,6 +224,7 @@ namespace Dayglance {
   }
   public void Refresh(bool force) {
    if(settingsOpen && !force) return;
+   var hook=refreshed; if(hook!=null) hook(); // keeps an open activity details card in step
    DateTime now=AppClock.Now; if(selected==lastToday) selected=now.Date; lastToday=now.Date; clockLabel.Text=now.ToString("ddd d MMM",UI.Culture)+"  ·  "+UI.Clock(now).ToUpperInvariant();
    var today=Schedule.ForDay(State,now.Date); var active=today.Where(o=>o.Start<=now && o.End>now && !State.Completed.Contains(o.Key)).ToList();
    var entries=Schedule.ForDay(State,selected); var sig=selected.ToString("O")+now.ToString("yyyyMMddHHmm")+State.Completed.Count+State.Activities.Count+"/"+State.Checked.Count;
