@@ -158,7 +158,7 @@ namespace Dayglance {
    UI.Apply(State); Background=UI.Bg; Foreground=UI.Text;
    // Coming back to the same view keeps the schedule where it was; arriving at the day view from the week or the mini widget shows the current activity.
    string view=State.Compact?"mini":State.WeekView?"week":"day";
-   if(view==shownView) { if(view=="week" && weekScroll!=null) weekRestore=weekScroll.VerticalOffset; else if(view=="day" && scroll!=null) dayRestore=scroll.VerticalOffset; }
+   if(view==shownView) { if(view=="week" && weekScroll!=null) { if(weekRestore<0) weekRestore=weekScroll.VerticalOffset; } else if(view=="day" && scroll!=null) dayRestore=scroll.VerticalOffset; }
    else if(view=="day" && shownView!=null) dayFocus=true;
    shownView=view;
    if(State.Compact) { BuildMini(); return; }
