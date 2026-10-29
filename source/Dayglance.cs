@@ -152,7 +152,7 @@ namespace Dayglance {
     var updateTimer=new DispatcherTimer { Interval=TimeSpan.FromSeconds(30) }; updateTimer.Tick+=(s,e)=> { updateTimer.Interval=TimeSpan.FromHours(6); CheckForUpdates(false,null); }; updateTimer.Start();
 #endif
    }
-   UI.EnableBorderResize(this); EnableLightDismiss(); EnableHistoryInput(); SetSize(); Refresh(true); UpdateTrayLanguage(); SizeChanged+=(s,e)=> { RememberSize(); QueueGeometrySave(); if(State.WeekView && weekPanel!=null) RenderWeek(); }; LocationChanged+=(s,e)=> { RememberSize(); QueueGeometrySave(); };
+   UI.EnableBorderResize(this); EnableLightDismiss(); EnableHistoryInput(); SetSize(); Refresh(true); UpdateTrayLanguage(); if(!preview) { Microsoft.Win32.SystemEvents.UserPreferenceChanged+=OnSystemPreference; Closed+=(s,e)=>Microsoft.Win32.SystemEvents.UserPreferenceChanged-=OnSystemPreference; } SizeChanged+=(s,e)=> { RememberSize(); QueueGeometrySave(); if(State.WeekView && weekPanel!=null) RenderWeek(); }; LocationChanged+=(s,e)=> { RememberSize(); QueueGeometrySave(); };
   }
   void BuildView() {
    UI.Apply(State); Background=UI.Bg; Foreground=UI.Text;
@@ -293,12 +293,12 @@ namespace Dayglance {
    start.Changed+=followStart; duration.Changed+=followStart; end.Changed+=()=>showDuration(Schedule.DurationMinutes(start.Value,end.Value));
    var durationRow=UI.Row(); var durationLabel=UI.Label("DURATION",11,UI.Muted); durationLabel.Margin=new Thickness(0); durationLabel.VerticalAlignment=VerticalAlignment.Center; durationRow.Children.Add(durationLabel); durationRow.Children.Add(duration); durationRow.Margin=new Thickness(0,0,0,4); panel.Children.Add(durationRow);
    panel.Children.Add(UI.Label("An earlier end time finishes the following day.",11,UI.Muted));
-   panel.Children.Add(UI.Label("REPEAT ON  ·  LEAVE EMPTY FOR ONE DATE",11,UI.Muted)); var days=UI.Row(); var checks=new List<CheckBox>(); int[] order={1,2,3,4,5,6,0}; foreach(int d in order) { var c=UI.Chip(UI.Culture.DateTimeFormat.AbbreviatedDayNames[d],activity!=null&&activity.Days.Contains(d)); c.Margin=new Thickness(0,5,5,8); checks.Add(c); days.Children.Add(c); } panel.Children.Add(days);
+   var repeatLabel=UI.Label("",11,UI.Muted); panel.Children.Add(repeatLabel); var days=UI.Row(); var checks=new List<CheckBox>(); int[] order={1,2,3,4,5,6,0}; foreach(int d in order) { var c=UI.Chip(UI.Culture.DateTimeFormat.AbbreviatedDayNames[d],activity!=null&&activity.Days.Contains(d)); c.Margin=new Thickness(0,5,5,8); checks.Add(c); days.Children.Add(c); } panel.Children.Add(days);
    var presets=UI.Row(); var everyDay=UI.Button("Every day",()=>checks.ForEach(c=>c.IsChecked=true)); var weekdays=UI.Button("Weekdays",()=> { for(int i=0;i<7;i++) checks[i].IsChecked=i<5; }); var once=UI.Button("Once",()=>checks.ForEach(c=>c.IsChecked=false)); presets.Children.Add(everyDay); presets.Children.Add(weekdays); presets.Children.Add(once); panel.Children.Add(presets);
    var date=new DateField { SelectedDate=activity!=null&&activity.Days.Length==0?DateTime.ParseExact(activity.Date,"yyyy-MM-dd",CultureInfo.InvariantCulture):slot.HasValue?slot.Value.Date:selected,Margin=new Thickness(0,10,0,12) }; panel.Children.Add(date); Action updateDate=()=> {
     date.IsEnabled=!checks.Any(c=>c.IsChecked==true); date.Opacity=date.IsEnabled?1:0.45;
     // The preset that matches the chosen days is highlighted, so a new activity starts with Once selected.
-    var picked=checks.Select(c=>c.IsChecked==true).ToArray();
+    var picked=checks.Select(c=>c.IsChecked==true).ToArray(); repeatLabel.Text=UI.T(picked.Any(x=>x)?"REPEATS EVERY WEEK  ·  CHOOSE ONCE FOR A SINGLE DATE":"REPEAT OFF  ·  PICK DAYS TO REPEAT EVERY WEEK");
     foreach(var p in new[]{ Tuple.Create(once,picked.All(x=>!x)),Tuple.Create(weekdays,picked.Select((x,i)=>x==i<5).All(x=>x)),Tuple.Create(everyDay,picked.All(x=>x)) }) { p.Item1.Background=p.Item2?UI.Accent:UI.Card; p.Item1.Foreground=p.Item2?UI.AccentInk:UI.Text; }
    }; foreach(var c in checks) { c.Checked+=(s,e)=>updateDate(); c.Unchecked+=(s,e)=>updateDate(); } updateDate();
    panel.Children.Add(UI.Label("COLOR",11,UI.Muted)); string color=Palette.Normalize(activity==null?"#A4E9CC":activity.Color)??"#A4E9CC";
@@ -331,13 +331,7 @@ namespace Dayglance {
     var row=new DockPanel { Margin=new Thickness(0,0,0,6) }; var box=UI.Input(text); box.MaxLength=200; box.Margin=new Thickness(0); var entry=new KeyValuePair<string,TextBox>(id,box);
     var remove=UI.Icon("\uE711","Remove item",()=> { items.Remove(entry); itemRows.Children.Remove(row); addItem.IsEnabled=true; }); remove.FontSize=11; DockPanel.SetDock(remove,Dock.Right); row.Children.Add(remove);
     // Drag the grip to reorder; the row follows the pointer and drops where it is released.
-    var grip=new TextBlock { Text="\uE76F",FontFamily=new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),FontSize=12,Foreground=UI.Muted,Width=24,VerticalAlignment=VerticalAlignment.Center,Cursor=Cursors.SizeNS,Background=Brushes.Transparent,ToolTip=UI.T("Drag to reorder") };
-    DockPanel.SetDock(grip,Dock.Left); row.Children.Add(grip); row.Children.Add(box); double grabY=0; var shift=new TranslateTransform(); row.RenderTransform=shift;
-    Func<double,int> dropIndex=y=> { int to=0; foreach(FrameworkElement other in itemRows.Children) if(other!=row && y>other.TranslatePoint(new Point(0,0),itemRows).Y+other.ActualHeight/2) to++; return to; };
-    grip.MouseLeftButtonDown+=(s,e)=> { grabY=e.GetPosition(itemRows).Y; Panel.SetZIndex(row,1); row.Opacity=.85; grip.CaptureMouse(); e.Handled=true; };
-    grip.MouseMove+=(s,e)=> { if(grip.IsMouseCaptured) shift.Y=e.GetPosition(itemRows).Y-grabY; };
-    grip.LostMouseCapture+=(s,e)=> { shift.Y=0; Panel.SetZIndex(row,0); row.Opacity=1; };
-    grip.MouseLeftButtonUp+=(s,e)=> { if(!grip.IsMouseCaptured) return; int to=dropIndex(row.TranslatePoint(new Point(0,0),itemRows).Y+row.ActualHeight/2); grip.ReleaseMouseCapture(); moveRow(row,to); e.Handled=true; };
+    var grip=UI.Grip(row,itemRows,to=>moveRow(row,to),UI.Muted); DockPanel.SetDock(grip,Dock.Left); row.Children.Add(grip); row.Children.Add(box);
     box.PreviewKeyDown+=(s,e)=> {
      if(e.Key==Key.Enter && items.Count<Schedule.MaxChecklist) { e.Handled=true; addRow(null,"",true); }
      else if(Keyboard.Modifiers==ModifierKeys.Alt && (e.SystemKey==Key.Up || e.SystemKey==Key.Down)) { e.Handled=true; moveRow(row,itemRows.Children.IndexOf(row)+(e.SystemKey==Key.Up?-1:1)); Dispatcher.BeginInvoke(DispatcherPriority.Input,new Action(()=>box.Focus())); }

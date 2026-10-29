@@ -358,9 +358,15 @@ namespace Dayglance {
    foreach(var item in o.Activity.Checklist) {
     var entry=item; var tick=UI.Tick(item.Text,State.Checked.Contains(o.ItemKey(item)),text,mark,tickInk);
     if(interactive) tick.Click+=(s,e)=> { Schedule.ToggleItem(State,o,entry); if(!Save()) Schedule.ToggleItem(State,o,entry); Refresh(true); }; else tick.IsHitTestVisible=false;
-    panel.Children.Add(tick);
+    if(!interactive || o.Activity.Checklist.Count<2) { panel.Children.Add(tick); continue; }
+    // Same drag handle as the activity editor; the new order is saved for every occurrence.
+    var line=new DockPanel(); var grip=UI.Grip(line,panel,to=>MoveChecklistItem(o.Activity,entry,to),text); grip.Opacity=.55; DockPanel.SetDock(grip,Dock.Left); line.Children.Add(grip); line.Children.Add(tick); panel.Children.Add(line);
    }
    return panel;
+  }
+  void MoveChecklistItem(Activity activity,ChecklistItem item,int to) {
+   var list=activity.Checklist; int from=list.IndexOf(item); to=Math.Max(0,Math.Min(list.Count-1,to)); if(from<0 || from==to) return;
+   list.RemoveAt(from); list.Insert(to,item); if(!Save()) { list.Remove(item); list.Insert(from,item); } Refresh(true);
   }
   // "  ·  ✓ 2/5" after an activity's time, when it has a checklist.
   string ChecklistProgress(Occurrence o) { int total=o.Activity.Checklist.Count; return total==0?"":"  ·  ✓ "+Schedule.CheckedCount(State,o)+"/"+total; }
@@ -524,10 +530,10 @@ namespace Dayglance {
    var w=UI.Dialog(this,"Dayglance settings",520,700); w.LightDismiss=true; var p=new StackPanel { Margin=new Thickness(24,8,24,12) }; var scroller=new ScrollViewer { Content=p,VerticalScrollBarVisibility=ScrollBarVisibility.Auto };
    var settingsShell=new DockPanel(); var tabBar=new Border { Margin=new Thickness(24,4,24,6) }; DockPanel.SetDock(tabBar,Dock.Top); settingsShell.Children.Add(tabBar);
    var footer=new Border { Padding=new Thickness(24,12,24,20),BorderThickness=new Thickness(0,1,0,0) }; DockPanel.SetDock(footer,Dock.Bottom); settingsShell.Children.Add(footer); settingsShell.Children.Add(scroller); w.Content=settingsShell;
-   string themeId=State.Theme,language=State.Language,cardStyle=State.CardStyle,weekHighlight=State.WeekHighlight,tab="appearance",timeFormat=State.TimeFormat; double scale=State.UiScale; bool autoUpdate=State.AutoUpdateCheck,notifications=State.Notifications,sound=State.Sound,startup=File.Exists(StartupPath),saved=false;
+   string themeId=State.Theme,themeMode=State.ThemeMode??(Palette.IsDark(UI.Resolve(State).Background)?"dark":"light"),language=State.Language,cardStyle=State.CardStyle,weekHighlight=State.WeekHighlight,tab="appearance",timeFormat=State.TimeFormat; double scale=State.UiScale; bool autoUpdate=State.AutoUpdateCheck,notifications=State.Notifications,sound=State.Sound,startup=File.Exists(StartupPath),saved=false;
    Choice languageChoice=null; Action render=null;
    Action applyPending=()=> {
-    UI.Apply(new State { Theme=themeId,Language=language,CustomThemes=State.CustomThemes,UiScale=scale,TimeFormat=timeFormat });
+    UI.Apply(new State { Theme=themeId,ThemeMode=themeMode,Language=language,CustomThemes=State.CustomThemes,UiScale=scale,TimeFormat=timeFormat });
     w.Title=UI.T("Dayglance settings"); w.Width=520*UI.Scale; w.Restyle(); render();
    };
    Func<string,UIElement> section=text=> { var label=UI.Label(text,11,UI.Muted); label.Margin=new Thickness(0,18,0,6); return label; };
@@ -539,8 +545,13 @@ namespace Dayglance {
     tabBar.Child=new Border { Child=tabs,Background=UI.Card,CornerRadius=new CornerRadius(10),Padding=new Thickness(3),HorizontalAlignment=HorizontalAlignment.Left };
     if(tab=="appearance") {
      var heading=section("THEME"); ((FrameworkElement)heading).Margin=new Thickness(0,8,0,6); p.Children.Add(heading);
+     // Light, Dark or the Windows app mode; each built-in theme has a light and a dark palette.
+     var modes=new WrapPanel { Margin=new Thickness(0,0,0,8) };
+     foreach(var mode in new[]{ Tuple.Create("light","Light"),Tuple.Create("dark","Dark"),Tuple.Create("system","Sync with system") }) { string modeKey=mode.Item1; var modeButton=UI.Button(mode.Item2,()=> { themeMode=modeKey; applyPending(); },themeMode==modeKey); modeButton.Margin=new Thickness(0,0,6,6); modes.Children.Add(modeButton); }
+     p.Children.Add(modes);
      var themeGrid=new UniformGrid { Columns=2,Margin=new Thickness(0,2,0,8) };
-     foreach(var theme in UI.AvailableThemes(State)) {
+     foreach(var family in UI.AvailableThemes(State)) {
+      var theme=UI.ForMode(family,themeMode);
       var info=new StackPanel(); var name=UI.Label(UI.T(theme.Name),13,UI.B(theme.Foreground)); name.Margin=new Thickness(0,0,0,9); info.Children.Add(name);
       var swatches=UI.Row(); foreach(string hex in new[]{theme.Background,theme.Surface,theme.Foreground,theme.Accent}) swatches.Children.Add(new Border { Background=UI.B(hex),Width=24,Height=13,CornerRadius=new CornerRadius(4),Margin=new Thickness(0,0,5,0),BorderBrush=UI.B(theme.Line),BorderThickness=new Thickness(1) }); info.Children.Add(swatches);
       bool chosen=theme.Id==themeId;
@@ -553,6 +564,7 @@ namespace Dayglance {
      var themeActions=new WrapPanel(); themeActions.Children.Add(UI.Button("Create theme…",()=>CreateTheme(w,null,theme=> { State.CustomThemes.Add(theme); if(!Save()) { State.CustomThemes.Remove(theme); return; } themeId=theme.Id; applyPending(); })));
      var custom=State.CustomThemes.FirstOrDefault(t=>t.Id==themeId);
      if(custom!=null) {
+      var keeps=UI.Label("Custom themes keep their colors in every mode.",11,UI.Muted); p.Children.Add(keeps);
       themeActions.Children.Add(UI.Button("Edit theme…",()=>CreateTheme(w,custom,updated=> { int index=State.CustomThemes.IndexOf(custom); if(index<0) return; State.CustomThemes[index]=updated; if(!Save()) { State.CustomThemes[index]=custom; return; } applyPending(); })));
       themeActions.Children.Add(UI.Button("Delete theme",()=> {
        if(MessageBox.Show(w,UI.T("Delete this theme?")+"\n\n"+custom.Name,UI.T("Delete theme"),MessageBoxButton.YesNo,MessageBoxImage.Question)!=MessageBoxResult.Yes) return;
@@ -648,9 +660,9 @@ namespace Dayglance {
        else if(File.Exists(StartupPath)) File.Delete(StartupPath);
       }
       if(tab=="appearance" && languageChoice!=null) language=languageChoice.SelectedIndex==1?"es":"en";
-      string oldTheme=State.Theme,oldLanguage=State.Language,oldCards=State.CardStyle,oldHighlight=State.WeekHighlight; bool oldNotifications=State.Notifications,oldSound=State.Sound; double oldScale=State.UiScale; string oldFormat=State.TimeFormat;
-      State.Notifications=notifications; State.Sound=sound; State.Theme=themeId; State.CardStyle=cardStyle; State.WeekHighlight=weekHighlight; State.Language=language; State.UiScale=scale; State.TimeFormat=timeFormat; State.AutoUpdateCheck=autoUpdate;
-      if(Save()) { saved=true; w.Close(); } else { State.Theme=oldTheme; State.Language=oldLanguage; State.Notifications=oldNotifications; State.Sound=oldSound; State.CardStyle=oldCards; State.WeekHighlight=oldHighlight; State.UiScale=oldScale; State.TimeFormat=oldFormat; }
+      string oldTheme=State.Theme,oldMode=State.ThemeMode,oldLanguage=State.Language,oldCards=State.CardStyle,oldHighlight=State.WeekHighlight; bool oldNotifications=State.Notifications,oldSound=State.Sound; double oldScale=State.UiScale; string oldFormat=State.TimeFormat;
+      State.Notifications=notifications; State.Sound=sound; State.Theme=themeId; State.ThemeMode=themeMode; State.CardStyle=cardStyle; State.WeekHighlight=weekHighlight; State.Language=language; State.UiScale=scale; State.TimeFormat=timeFormat; State.AutoUpdateCheck=autoUpdate;
+      if(Save()) { saved=true; w.Close(); } else { State.Theme=oldTheme; State.ThemeMode=oldMode; State.Language=oldLanguage; State.Notifications=oldNotifications; State.Sound=oldSound; State.CardStyle=oldCards; State.WeekHighlight=oldHighlight; State.UiScale=oldScale; State.TimeFormat=oldFormat; }
      } catch(Exception ex) { MessageBox.Show(w,UI.T(ex.Message),UI.T("Could not save preferences")); }
     },true); saveButton.HorizontalAlignment=HorizontalAlignment.Stretch; saveButton.MinHeight=42; saveButton.Margin=new Thickness(0);
     var footerPanel=new StackPanel(); footerPanel.Children.Add(hint); footerPanel.Children.Add(saveButton); footer.BorderBrush=UI.Line; footer.Child=footerPanel;
