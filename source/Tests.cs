@@ -161,6 +161,11 @@ namespace Dayglance {
     press(popupButton(b=>Convert.ToString(b.Content)=="Mes")); press(popupButton(b=>Convert.ToString(b.ToolTip)=="Siguiente")); goalsView.UpdateLayout(); Descendants<TextBox>(goalsView).Last().Text="Planear vacaciones"; press(popupButton(b=>Convert.ToString(b.Content)=="Añadir"));
     string nextMonth=GoalPlan.Shift(GoalPlan.Period("month",AppClock.Today),1); Check(w.State.Goals.Any(g=>g.Text=="Planear vacaciones" && g.Period==nextMonth),"a goal can be added for next month");
     w.GoalsPopup.IsOpen=false; app.Dispatcher.Invoke(DispatcherPriority.Background,new Action(()=> {}));
+    // Saving settings rebuilds the window: the week grid must stay at the hour the user was looking at instead of jumping back to midnight.
+    Func<double> weekOffset=()=> { w.UpdateLayout(); return Descendants<ScrollViewer>(w).First(v=>v.Content is Canvas && v.VerticalScrollBarVisibility==ScrollBarVisibility.Auto).VerticalOffset; };
+    w.ScrollWeekToHour(9); double kept=weekOffset();
+    app.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle,new Action(()=> { var dialog=app.Windows.Cast<Window>().First(x=>x!=w); Click(dialog,"Guardar preferencias"); })); Click(w,"Ajustes");
+    app.Dispatcher.Invoke(DispatcherPriority.ApplicationIdle,new Action(()=> {})); Check(kept>100 && Math.Abs(weekOffset()-kept)<1,"week view keeps its scroll position after saving settings");
     Click(w,"Día"); Check(goalPill("Metas de la semana · 1/2") && goalPill("Metas del año · 1/1") && !goalPill("Metas del mes"),"day view shows the goal pills for the day shown, not next month's");
     // Welcome tour (Spanish at this point): name, weekly days, reminder, then the tips page.
     int before=w.State.Activities.Count; w.State.Onboarded=false;

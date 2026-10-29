@@ -156,6 +156,11 @@ namespace Dayglance {
   }
   void BuildView() {
    UI.Apply(State); Background=UI.Bg; Foreground=UI.Text;
+   // Coming back to the same view keeps the schedule where it was; arriving at the day view from the week or the mini widget shows the current activity.
+   string view=State.Compact?"mini":State.WeekView?"week":"day";
+   if(view==shownView) { if(view=="week" && weekScroll!=null) weekRestore=weekScroll.VerticalOffset; else if(view=="day" && scroll!=null) dayRestore=scroll.VerticalOffset; }
+   else if(view=="day" && shownView!=null) dayFocus=true;
+   shownView=view;
    if(State.Compact) { BuildMini(); return; }
    var root=new DockPanel { Margin=new Thickness(18,10,18,12),LastChildFill=true }; Content=new Border { BorderBrush=UI.Line,BorderThickness=new Thickness(1),Child=root,LayoutTransform=new ScaleTransform(UI.Scale,UI.Scale) };
    // Title bar: brand (drag handle) on the left, actions and window controls on the right.
@@ -176,7 +181,7 @@ namespace Dayglance {
    var toolbar=new DockPanel { Margin=new Thickness(0,0,0,12) };
    var nav=UI.Row(); nav.VerticalAlignment=VerticalAlignment.Center;
    nav.Children.Add(UI.Icon("\uE76B","Previous",()=> { selected=selected.AddDays(State.WeekView?-7:-1); Refresh(true); }));
-   var todayButton=UI.Button("Today",()=> { weekColumn=-1; if(!Navigate(State.WeekView,AppClock.Today)) Refresh(true); }); todayButton.Margin=new Thickness(2,0,2,0); todayButton.MinHeight=30; todayButton.Background=Brushes.Transparent; nav.Children.Add(todayButton);
+   var todayButton=UI.Button("Today",()=> { weekColumn=-1; if(State.WeekView) focusNow=true; else dayFocus=true; if(!Navigate(State.WeekView,AppClock.Today)) Refresh(true); }); todayButton.Margin=new Thickness(2,0,2,0); todayButton.MinHeight=30; todayButton.Background=Brushes.Transparent; nav.Children.Add(todayButton);
    nav.Children.Add(UI.Icon("\uE76C","Next",()=> { selected=selected.AddDays(State.WeekView?7:1); Refresh(true); }));
    compact=UI.Icon("\uE73F","Mini widget",ToggleCompact); compact.Margin=new Thickness(6,0,0,0); nav.Children.Add(compact);
    DockPanel.SetDock(nav,Dock.Right); toolbar.Children.Add(nav);
@@ -254,7 +259,7 @@ namespace Dayglance {
     else UI.SlideIn(heroBox,24,0);
    }
    if(State.WeekView) { summary.Text=UI.T("Click an activity to edit or an empty slot to add one."); RenderWeek(); return; }
-   var offset=scroll.VerticalOffset; list.Children.Clear();
+   var offset=dayRestore>=0?dayRestore:scroll.VerticalOffset; list.Children.Clear();
    if(entries.Count==0) { var empty=new StackPanel { Margin=new Thickness(8,15,8,0) }; empty.Children.Add(UI.Label("A fresh page.",20,UI.Text)); empty.Children.Add(UI.Label("Use + Activity to add something, or Manage to edit your weekly routine.",13,UI.Muted)); list.Children.Add(empty); }
    dayCards.Clear();
    DateTime? busyUntil=null;
@@ -264,6 +269,8 @@ namespace Dayglance {
     busyUntil=!busyUntil.HasValue||o.End>busyUntil.Value?o.End:busyUntil.Value;
    }
    scroll.ScrollToVerticalOffset(offset);
+   if(dayRestore>=0) { var restoring=scroll; Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,new Action(()=> { if(scroll!=restoring || dayRestore<0) return; restoring.ScrollToVerticalOffset(dayRestore); dayRestore=-1; })); }
+   if(dayFocus) { dayFocus=false; if(selected==now.Date && focusTarget!=null) { string key=focusTarget.Key; Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,new Action(()=>FocusActivity(key))); } }
    Border startedCard; if(activityChanged && selected==now.Date && dayCards.TryGetValue(currentKey,out startedCard)) Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,new Action(()=>UI.GlowAround(startedCard,12)));
   }
   void Notify() {
