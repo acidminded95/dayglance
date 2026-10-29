@@ -58,7 +58,7 @@ namespace Dayglance {
     throw new Exception("Goals need 1–200 characters, with up to 5 for each week, month, quarter or year.");
   }
  }
- // Week view goals: one pill per span that has goals for the week shown, between the week dates and the Up next card.
+ // Goals: one pill per span that has goals for the week shown, between the week dates and the Up next card; in day view, on a card to the right of the date.
  // A pill opens a popover to tick, add or remove that span's goals. When the pills don't fit, they merge into a single Goals pill.
  public partial class MainWindow {
   DockPanel dateRow; StackPanel dateText; Border goalsHost; StackPanel goalPills; Button goalsMerged;
@@ -85,11 +85,12 @@ namespace Dayglance {
    text.Inlines.Add(new Run(label) { FontWeight=FontWeights.SemiBold }); if(total>0) text.Inlines.Add(new Run("  "+done+"/"+total) { Foreground=complete?UI.AccentInk:UI.Muted });
    var pill=UI.Button("",open,complete); pill.Content=text; pill.Margin=new Thickness(0,0,6,0); pill.MinHeight=28; pill.ToolTip=tooltip; pill.VerticalAlignment=VerticalAlignment.Bottom; return pill;
   }
+  // The day whose week, month, quarter and year the goals follow: the day shown in day view, see GoalPlan.Anchor for the week view.
+  DateTime GoalAnchor() { return State.WeekView?GoalPlan.Anchor(selected,AppClock.Today):selected.Date; }
   // Rebuilds the pills for the week shown. Skipped while the popover is open, so it stays anchored to its pill.
   void FillGoals() {
-   if(goalsHost==null) return; goalsHost.Visibility=State.WeekView?Visibility.Visible:Visibility.Collapsed;
-   if(!State.WeekView || (GoalsPopup!=null && GoalsPopup.IsOpen)) return;
-   var anchor=GoalPlan.Anchor(selected,AppClock.Today); goalPills.Children.Clear(); int done=0,total=0;
+   if(goalsHost==null || (GoalsPopup!=null && GoalsPopup.IsOpen)) return; goalsHost.Visibility=Visibility.Visible;
+   var anchor=GoalAnchor(); goalPills.Children.Clear(); int done=0,total=0;
    foreach(var span in GoalPlan.Spans) {
     var goals=GoalPlan.For(State,GoalPlan.Period(span,anchor)); if(goals.Count==0) continue;
     int d=goals.Count(g=>g.Done); done+=d; total+=goals.Count; string spanKey=span; Button pill=null;
@@ -103,24 +104,26 @@ namespace Dayglance {
    if(total==0) { goalsMerged.Background=Brushes.Transparent; goalsMerged.Foreground=UI.Muted; goalsMerged.MinHeight=28; goalsMerged.ToolTip=UI.T("Add a goal"); }
    goalsMerged.Margin=new Thickness(0); goalsMerged.VerticalAlignment=VerticalAlignment.Bottom; goalsMerged.HorizontalAlignment=HorizontalAlignment.Right; goalPills.HorizontalAlignment=HorizontalAlignment.Left;
    var old=goalsHost.Child as Grid; if(old!=null) old.Children.Clear(); var both=new Grid(); both.Children.Add(goalPills); both.Children.Add(goalsMerged); goalsHost.Child=both;
+   bool card=!State.WeekView && total>0; goalsHost.Background=card?UI.Hero:null; goalsHost.CornerRadius=new CornerRadius(10); goalsHost.Padding=card?new Thickness(8,6,6,6):new Thickness(0);
    FitGoals();
   }
-  // Shows every pill next to the week dates when they fit; otherwise one merged pill next to the Up next card, and the dates trim.
+  // Shows every pill when they fit (beside the week dates, or on the day view card); otherwise one merged pill, and the dates trim.
   void FitGoals() {
-   if(goalsHost==null || goalsMerged==null || !State.WeekView) return;
+   if(goalsHost==null || goalsMerged==null) return;
    var unlimited=new Size(double.PositiveInfinity,double.PositiveInfinity);
    goalPills.Visibility=Visibility.Visible; goalsMerged.Visibility=Visibility.Visible; goalPills.Measure(unlimited); dateText.Measure(unlimited); weekNow.Measure(unlimited);
-   double room=dateRow.ActualWidth-2-dateText.DesiredSize.Width-(weekNow.Visibility==Visibility.Visible?weekNow.DesiredSize.Width:0)-goalsHost.Margin.Left-goalsHost.Margin.Right;
+   double room=dateRow.ActualWidth-2-dateText.DesiredSize.Width-(weekNow.Visibility==Visibility.Visible?weekNow.DesiredSize.Width:0)-goalsHost.Margin.Left-goalsHost.Margin.Right-goalsHost.Padding.Left-goalsHost.Padding.Right;
    bool fits=dateRow.ActualWidth>0 && goalPills.DesiredSize.Width<=room;
-   goalPills.Visibility=fits?Visibility.Visible:Visibility.Collapsed; goalsMerged.Visibility=fits?Visibility.Collapsed:Visibility.Visible; goalsHost.Width=fits?Math.Max(0,room):double.NaN;
+   goalPills.Visibility=fits?Visibility.Visible:Visibility.Collapsed; goalsMerged.Visibility=fits?Visibility.Collapsed:Visibility.Visible; goalsHost.Width=fits && State.WeekView?Math.Max(0,room):double.NaN; // in day view the card sits at the right
   }
   // Popover for one span's goals, or (span null) every span that has goals, with a span picker for new ones.
   void OpenGoals(FrameworkElement target,string span) {
    if(target==null || (GoalsPopup!=null && GoalsPopup.IsOpen)) return;
-   var anchor=GoalPlan.Anchor(selected,AppClock.Today); string addSpan=span??"week"; bool focusInput=false;
+   var anchor=GoalAnchor(); string addSpan=span??"week"; bool focusInput=false;
    var panel=new StackPanel { Width=290 };
    var popup=new Popup { PlacementTarget=target,Placement=PlacementMode.Bottom,VerticalOffset=6,StaysOpen=false,AllowsTransparency=true };
-   popup.Child=new Border { LayoutTransform=new ScaleTransform(UI.Scale,UI.Scale),Child=new ScrollViewer { Content=panel,MaxHeight=480,VerticalScrollBarVisibility=ScrollBarVisibility.Auto },Background=UI.Card,BorderBrush=UI.Line,BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(10),Padding=new Thickness(14,12,14,12) };
+   // The popover takes its font from its target, and the + button uses the icon font, so set the text font here.
+   var frame=new Border { LayoutTransform=new ScaleTransform(UI.Scale,UI.Scale),Child=new ScrollViewer { Content=panel,MaxHeight=480,VerticalScrollBarVisibility=ScrollBarVisibility.Auto },Background=UI.Card,BorderBrush=UI.Line,BorderThickness=new Thickness(1),CornerRadius=new CornerRadius(10),Padding=new Thickness(14,12,14,12) }; TextElement.SetFontFamily(frame,new FontFamily("Segoe UI")); popup.Child=frame;
    Action fill=null; fill=()=> {
     panel.Children.Clear(); bool any=false;
     foreach(var sp in GoalPlan.Spans) {
