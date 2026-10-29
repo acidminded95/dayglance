@@ -269,7 +269,7 @@ namespace Dayglance {
     busyUntil=!busyUntil.HasValue||o.End>busyUntil.Value?o.End:busyUntil.Value;
    }
    scroll.ScrollToVerticalOffset(offset);
-   if(dayRestore>=0) { var restoring=scroll; Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,new Action(()=> { if(scroll!=restoring || dayRestore<0) return; restoring.ScrollToVerticalOffset(dayRestore); dayRestore=-1; })); }
+   if(dayRestore>=0) { var restoring=scroll; Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,new Action(()=> { if(scroll!=restoring || dayRestore<0) return; restoring.ScrollToVerticalOffset(dayRestore); restoring.UpdateLayout(); dayRestore=-1; })); }
    if(dayFocus) { dayFocus=false; if(selected==now.Date && focusTarget!=null) { string key=focusTarget.Key; Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,new Action(()=>FocusActivity(key))); } }
    Border startedCard; if(activityChanged && selected==now.Date && dayCards.TryGetValue(currentKey,out startedCard)) Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,new Action(()=>UI.GlowAround(startedCard,12)));
   }

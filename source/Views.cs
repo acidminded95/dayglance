@@ -16,7 +16,7 @@ namespace Dayglance {
   DateTime weekFirst;
   bool sizing;
   bool focusNow,pulseNow; Border weekNowTarget,weekNowCard; Ellipse weekNowDot; // set when compact/expand toggles in week view: scroll the current activity into sight on the next render
-  // A rebuild (settings, theme) replaces the scrollers: the old offset is carried over until the new one has been laid out. dayFocus scrolls the day list to the current activity instead.
+  // A rebuild (settings, theme) replaces the scrollers: the old offset is carried over until the new one has applied it (ScrollToVerticalOffset only lands on the next layout). dayFocus scrolls the day list to the current activity instead.
   double weekRestore=-1,dayRestore=-1; bool dayFocus; string shownView;
   // Day and week share one window size and position; the mini widget keeps its own. Positions are clamped to the virtual screen so multi-monitor placement survives restarts.
   void SetSize() {
@@ -283,7 +283,7 @@ namespace Dayglance {
    var bodyScroll=weekScroll;
    bodyScroll.ScrollChanged+=(s,e)=> { gutterScroll.ScrollToVerticalOffset(e.VerticalOffset); headScroll.ScrollToHorizontalOffset(e.HorizontalOffset); };
    bodyScroll.ScrollToVerticalOffset(offset);
-   if(weekRestore>=0) Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,new Action(()=> { if(weekScroll!=bodyScroll || weekRestore<0) return; bodyScroll.ScrollToVerticalOffset(weekRestore); weekRestore=-1; }));
+   if(weekRestore>=0) Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,new Action(()=> { if(weekScroll!=bodyScroll || weekRestore<0) return; bodyScroll.ScrollToVerticalOffset(weekRestore); bodyScroll.UpdateLayout(); weekRestore=-1; }));
    weekTargetOffset=0;
    if(sliding) {
     bool recenter=hOffset<0 || Math.Abs(column-weekColumn)>.01 || first!=weekFirst;
