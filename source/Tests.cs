@@ -136,7 +136,7 @@ namespace Dayglance {
     var goalsView=(FrameworkElement)w.GoalsPopup.Child; goalsView.UpdateLayout(); Descendants<TextBox>(goalsView).First().Text="Llamar a mamá"; Descendants<Button>(goalsView).First(b=>Convert.ToString(b.Content)=="Añadir").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
     goalsView.UpdateLayout(); Descendants<CheckBox>(goalsView).First(c=>c.Content is TextBlock && ((TextBlock)c.Content).Text=="Leer 50 páginas").RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
     var savedGoals=Storage.Read(Storage.FilePath).Goals; Check(savedGoals.Count==3 && savedGoals.Single(g=>g.Id=="gw").Done && savedGoals.Any(g=>g.Text=="Llamar a mamá" && g.Period==GoalPlan.Period("week",AppClock.Today)),"goals are added, ticked and saved from the popover");
-    w.GoalsPopup.IsOpen=false; Check(w.GoalsPopup==null && goalPill("Metas · 2/3"),"closing the popover updates the pill"); w.Width=1200; w.UpdateLayout(); Click(w,"Día");
+    w.GoalsPopup.IsOpen=false; app.Dispatcher.Invoke(DispatcherPriority.Background,new Action(()=> {})); Check(w.GoalsPopup==null && goalPill("Metas · 2/3"),"closing the popover updates the pill"); w.Width=1200; w.UpdateLayout(); Click(w,"Día");
     // Welcome tour (Spanish at this point): name, weekly days, reminder, then the tips page.
     int before=w.State.Activities.Count; w.State.Onboarded=false;
     app.Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle,new Action(()=> {
