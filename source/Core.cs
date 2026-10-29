@@ -33,6 +33,8 @@ namespace Dayglance {
   public List<string> Reminded { get; set; }
   List<string> isChecked;
   public List<string> Checked { get { return isChecked??(isChecked=new List<string>()); } set { isChecked=value; } } // ticked checklist items, as Occurrence.ItemKey
+  List<Goal> goals;
+  public List<Goal> Goals { get { return goals??(goals=new List<Goal>()); } set { goals=value; } } // week, month, quarter and year goals
   public bool Notifications { get; set; }
   public bool Sound { get; set; }
   public bool Pinned { get; set; }
@@ -112,6 +114,7 @@ namespace Dayglance {
     if(a.Checklist.Count>MaxChecklist || a.Checklist.Any(i=>i==null || string.IsNullOrWhiteSpace(i.Id) || i.Id.Length>40 || !itemIds.Add(i.Id) || string.IsNullOrWhiteSpace(i.Text) || i.Text.Length>200)) throw new Exception("A checklist can have up to 30 items, each with 1–200 characters.");
    }
    if(s.Checked.Any(k=>string.IsNullOrEmpty(k) || k.Length>200)) throw new Exception("This is not a supported Dayglance backup.");
+   GoalPlan.Validate(s);
    if(s.Completed==null) s.Completed=new List<string>(); if(s.Reminded==null) s.Reminded=new List<string>();
    if(s.CustomThemes==null) s.CustomThemes=new List<Theme>();
    if(s.CustomThemes.Count>24) throw new Exception("Up to 24 custom themes are supported.");

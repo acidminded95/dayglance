@@ -23,7 +23,11 @@ Import an object with `Version: 1` and an `Activities` array. Dayglance 1 backup
       ]
     }
   ],
-  "Checked": ["study-weekdays@2027-01-11#read"]
+  "Checked": ["study-weekdays@2027-01-11#read"],
+  "Goals": [
+    { "Id": "g1", "Text": "Terminar el capítulo 2", "Period": "2027-01-10", "Done": false },
+    { "Id": "g2", "Text": "Correr un medio maratón", "Period": "2027", "Done": true }
+  ]
 }
 ```
 
@@ -38,5 +42,6 @@ Import an object with `Version: 1` and an `Activities` array. Dayglance 1 backup
 - `Checklist`: optional array of up to 30 items. Each `Id` is a nonempty string of at most 40 characters, unique within the activity; each `Text` has 1–200 characters. Omit it or use `[]` for none.
 - `Completed` and `Reminded`: optional history arrays; omit for a fresh schedule.
 - `Checked`: optional history of ticked checklist items, one string per tick: `<activity Id>@<occurrence start date yyyy-MM-dd>#<item Id>`. Ticks belong to one occurrence, so a repeating activity starts each time unticked.
+- `Goals`: optional array of week, month, quarter and year goals. Each `Id` is a unique nonempty string of at most 40 characters and each `Text` has 1–200 characters. `Period` is the week's Sunday (`yyyy-MM-dd`), a month (`yyyy-MM`), a quarter (`yyyy-Q1` to `yyyy-Q4`) or a year (`yyyy`), with up to 5 goals per period. `Done` marks it complete.
 
 Limits: 8 MB and 5,000 activity rules. Import replaces the schedule, with confirmation and backup. Theme/language/view/notification preferences stay local. Unknown fields are ignored.

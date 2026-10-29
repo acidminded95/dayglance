@@ -184,9 +184,10 @@ namespace Dayglance {
    foreach(var b in new[]{dayButton,weekButton}) { b.Margin=new Thickness(0); b.MinHeight=28; b.Padding=new Thickness(4,2,4,2); if(b.Background!=UI.Accent) b.Background=Brushes.Transparent; views.Children.Add(b); }
    var segmented=new Border { Child=views,Background=UI.Card,CornerRadius=new CornerRadius(9),Padding=new Thickness(3),HorizontalAlignment=HorizontalAlignment.Left,VerticalAlignment=VerticalAlignment.Center }; toolbar.Children.Add(segmented);
    top.Children.Add(toolbar);
-   var dateRow=new DockPanel(); weekNow=new Border { Background=UI.Hero,CornerRadius=new CornerRadius(10),Padding=new Thickness(10,6,12,6),Margin=new Thickness(10,0,0,0),MaxWidth=240,VerticalAlignment=VerticalAlignment.Bottom,Cursor=Cursors.Hand,Visibility=Visibility.Collapsed,ToolTip=UI.T("Show in schedule") };
+   dateRow=new DockPanel(); weekNow=new Border { Background=UI.Hero,CornerRadius=new CornerRadius(10),Padding=new Thickness(10,6,12,6),Margin=new Thickness(10,0,0,0),MaxWidth=240,VerticalAlignment=VerticalAlignment.Bottom,Cursor=Cursors.Hand,Visibility=Visibility.Collapsed,ToolTip=UI.T("Show in schedule") };
    weekNow.MouseLeftButtonUp+=(s,e)=>FocusWeekNow(); DockPanel.SetDock(weekNow,Dock.Right); dateRow.Children.Add(weekNow);
-   var dateText=new StackPanel { VerticalAlignment=VerticalAlignment.Bottom }; dateRow.Children.Add(dateText); top.Children.Add(dateRow);
+   goalPills=new StackPanel { Orientation=Orientation.Horizontal,VerticalAlignment=VerticalAlignment.Bottom }; goalsHost=new Border { Margin=new Thickness(14,0,0,0),VerticalAlignment=VerticalAlignment.Bottom,Visibility=Visibility.Collapsed }; DockPanel.SetDock(goalsHost,Dock.Right); dateRow.Children.Add(goalsHost); dateRow.SizeChanged+=(s,e)=>FitGoals();
+   dateText=new StackPanel { VerticalAlignment=VerticalAlignment.Bottom }; dateRow.Children.Add(dateText); top.Children.Add(dateRow);
    clockLabel=UI.Label("",11,UI.Muted); clockLabel.Margin=new Thickness(0,0,0,2); dateText.Children.Add(clockLabel);
    dayLabel=UI.Label("",22,UI.Text); dayLabel.FontWeight=FontWeights.SemiBold; dayLabel.Margin=new Thickness(0); dayLabel.TextTrimming=TextTrimming.CharacterEllipsis; dayLabel.TextWrapping=TextWrapping.NoWrap; dateText.Children.Add(dayLabel);
    hero=new StackPanel(); top.Children.Add(hero); summary=UI.Label("",11,UI.Muted); summary.Margin=new Thickness(0,12,0,10); top.Children.Add(summary); DockPanel.SetDock(top,Dock.Top); root.Children.Add(top);
@@ -245,7 +246,7 @@ namespace Dayglance {
    var focusTarget=active.Count>0?active[0]:today.FirstOrDefault(o=>o.Start>now&&!State.Completed.Contains(o.Key));
    if(focusTarget!=null) { string focusKey=focusTarget.Key; heroBox.Cursor=Cursors.Hand; heroBox.ToolTip=UI.T("Show in schedule"); heroBox.MouseLeftButtonUp+=(s,e)=>FocusActivity(focusKey,true); }
    summary.Text=UI.T("SCHEDULE")+"  /  "+entries.Count+" "+UI.T("ACTIVITIES")+"  ·  "+entries.Count(o=>State.Completed.Contains(o.Key))+" "+UI.T("DONE");
-   weekNow.Visibility=State.WeekView?Visibility.Visible:Visibility.Collapsed; if(State.WeekView) FillWeekNow(active,now);
+   weekNow.Visibility=State.WeekView?Visibility.Visible:Visibility.Collapsed; if(State.WeekView) FillWeekNow(active,now); FillGoals();
    // A new activity just started: slide the Right now card in and give the new current activity a pulse.
    if(activityChanged && active.Count>0) {
     if(State.WeekView) { UI.SlideIn(weekNow,24,0); Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,new Action(()=> { if(weekNowTarget!=null) UI.Attention(weekNowTarget); })); }
