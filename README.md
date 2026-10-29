@@ -49,7 +49,7 @@ To see the first-launch experience on a PC that already has a schedule, run `Day
 - Day and week views **share one window size**, and switching views never resizes the window. Drag any edge or corner to resize.
 - The week view shrinks to **3–7 day columns**. With fewer than seven it scrolls horizontally (Shift + wheel, or wheel over the day headings) and keeps today centered while you resize.
 - **Ctrl + mouse wheel** over the schedule zooms.
-- Week view highlights today and shows a live time line. Click a day heading for its day view, an activity to edit it, or an empty slot to add a one-hour activity starting at that hour. **Today** re-centers the week on today.
+- Week view highlights today and shows a live time line. Click a day heading for its day view, an activity to see its card (times, notes and a tickable checklist, with a pencil to edit), or an empty slot to add a one-hour activity starting at that hour. **Today** re-centers the week on today.
 - **Settings → Current activity in week view** shows the running activity with the time line and dot, an accent outline, or a pulsing accent glow.
 - The running activity is always outlined in the accent color. Click the **Right now** card (or the upcoming-activity card) to scroll to it; it lands first, or second when its neighbors also fit, pulses briefly and the other cards dim during the pulse.
 - Week view shows a compact **Right now / Up next** card beside the week range. Clicking it scrolls to the activity, pulses its glow and briefly dims everything else in the week.
@@ -76,7 +76,7 @@ Pick a color from the presets and every color already in your schedule, or use *
 
 Select repeat-day pills or Every day, Weekdays, or Once; the matching preset is highlighted, so a new activity starts on Once. The label above the days says whether the activity repeats. The custom calendar is enabled for one-time activities. Editing a repeating activity changes its whole series, including past views. Single-occurrence overrides are not supported.
 
-**Checklist (optional):** add up to 30 items, such as things to bring or steps to finish. Drag an item by its grip, or press Alt+↑/↓ while typing in it, to reorder. Items with a grip on the Day view card can be dragged there too; the order applies to every occurrence. Tick them right on the day card; the time line, week view tooltip, Right now card and mini widget show progress (✓ 2/5), and a reminder lists what is still open. Ticks belong to that day's occurrence: a repeating activity comes around again with a fresh list, while a one-time activity keeps its ticks. Ticking every item does not mark the activity done; use the circle button for that.
+**Checklist (optional):** add up to 30 items, such as things to bring or steps to finish. Drag an item by its grip, or press Alt+↑/↓ while typing in it, to reorder. On a Day view card, hover an item to show its grip and drag it there too; the other items slide aside, the dropped one glows briefly, and the order applies to every occurrence. Day view cards also show a pencil on hover; double-clicking a card still edits it. Tick them right on the day card; the time line, week view tooltip, Right now card and mini widget show progress (✓ 2/5), and a reminder lists what is still open. Ticks belong to that day's occurrence: a repeating activity comes around again with a fresh list, while a one-time activity keeps its ticks. Ticking every item does not mark the activity done; use the circle button for that.
 
 ## Themes and language
 
