@@ -595,7 +595,11 @@ namespace Dayglance {
 #if STORE
      // Packaged apps start at sign-in through the manifest's startup task, which the user turns on in Windows Settings.
      p.Children.Add(UI.Label(UI.T("To open Dayglance when you sign in, turn it on in Windows Settings → Apps → Startup."),12,UI.Muted));
-     var startupButton=UI.Button("Open startup settings",()=> { try { Process.Start("ms-settings:startupapps"); } catch {} }); startupButton.HorizontalAlignment=HorizontalAlignment.Left; p.Children.Add(startupButton);
+     var startupButton=UI.Button("Open startup settings",()=> {
+      // Launching the URI through Explorer works from a packaged app even where a direct ShellExecute of ms-settings: does nothing.
+      try { Process.Start("explorer.exe","ms-settings:startupapps"); }
+      catch { try { Process.Start("ms-settings:startupapps"); } catch(Exception ex) { MessageBox.Show(w,UI.T("To open Dayglance when you sign in, turn it on in Windows Settings → Apps → Startup.")+"\n\n"+ex.Message); } }
+     }); startupButton.HorizontalAlignment=HorizontalAlignment.Left; p.Children.Add(startupButton);
 #else
      var startupSwitch=UI.Switch("Start when I sign in to Windows",startup); startupSwitch.Checked+=(s,e)=>startup=true; startupSwitch.Unchecked+=(s,e)=>startup=false; p.Children.Add(startupSwitch);
 #endif

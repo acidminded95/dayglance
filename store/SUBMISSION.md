@@ -60,7 +60,7 @@ Check: Start menu tile and taskbar icon, launch, add an activity, quit from the 
 
 - Category: Productivity (no subcategory)
 - Privacy policy URL: https://acidminded.com/dayglance/privacy (Spanish version at https://acidminded.com/dayglance/privacidad; text in `docs/privacy.md` and `docs/privacidad.md`). Partner Center takes one URL; the English page links to the Spanish one.
-- Website: https://github.com/acidminded95/dayglance
+- Website: https://acidminded.com/dayglance/
 - Support contact info: support@acidminded.com
 - Product declarations: defaults; leave the accessibility box unticked unless tested with a screen reader and keyboard only
 - System requirements: minimum memory 4 GB
@@ -194,14 +194,15 @@ The screenshots show the English interface. A Spanish set would need a small cha
 | Name reservation and identity paste |  |  |  |  |
 | MSIX build errors | Local test signing: `signtool` said "This file format cannot be signed because it is not recognized" for .msix and .appx (SDK 10.0.28000, Windows 26H2, only Signing Tools + WACK installed). Its folder had `appxsip.dll` but not `appxpackaging.dll` / `opcservices.dll`. | ~20 min | Installing the SDK's UWP Managed and UWP C++ features fixed it; signing and Add-AppxPackage then worked with no restart. | Yes: any local MSIX signing needs the full packaging tools. |
 | WACK results | Passed with warnings (Kit 10.0.28000.2957, Windows 11 Pro 10.0.26300). Warning: High-DPI "not DPI aware / failed to process binary" (app.manifest uses legacy `dpiAware=true`). Optional test failed: Blocked executables (`Process.Start`, used to open Settings; only matters on Windows S mode). | ~10 min run | 2.2.0.0 rerun (Oct 27, with tour + checklists): identical result. None needed to submit. Possible later: declare `PerMonitorV2` in app.manifest after testing on mixed-DPI monitors. | Yes: Electron declares per-monitor DPI itself; expect the same optional Process/Launch warning. |
-| runFullTrust: extra questions or delay? |  |  |  |  |
-| Privacy policy accepted as written? |  |  |  |  |
+| runFullTrust: extra questions or delay? | No extra questions. Partner Center asks for a justification in Submission options (text in section 3). | 5 min | None | Yes: Electron MSIX needs the same box. |
+| Privacy policy accepted as written? | Yes (hosted at acidminded.com/dayglance/privacy). | | None | Yes |
 | IARC rating received |  |  |  |  |
 | Listing assets rejected or resized? | WACK's app picker showed the icon as a blue/black square; it draws icons through a legacy 8-bit, no-alpha path. The assets are fine. |  | None | Yes: don't judge icons by WACK's list; check Start, the taskbar and the Store page. |
-| Certification time and report |  |  |  |  |
-| Private audience: how a tester gets in (link, sign-in, Store app) |  |  |  |  |
+| Listing text limits | Features were rejected as "too long" when pasted into one box: each feature goes in its own box. | 10 min | One feature per box; shorter description fallback kept in the listing kit. | Yes |
+| Certification time and report | Submitted Oct 28 2026 22:54 UTC; the "ready" email came about 50 minutes later. | ~50 min | None | Yes: budget an hour, but Microsoft says up to 3 business days. |
+| Private audience: how a tester gets in (link, sign-in, Store app) | Tester group = Microsoft account emails. Uninstall any sideloaded copy first (same identity). The Store app hung at "Reserving space" and could not be cancelled; `winget install <StoreID> -s msstore` installed it after a while. It shows the listing metadata and asks to accept agreements. | ~20 min | winget, or restart InstallService / reboot | Yes: give testers the winget line as a fallback. |
 | Install size, install time, data folder, uninstall | Store build opened the existing ZIP-version schedule: MSIX only redirects *new* AppData files; existing `%LOCALAPPDATA%\Dayglance` is shared. |  | Documented; privacy page says so. Rename the folder to test first run. | Yes: an Electron app with an existing non-Store install will see its old `%APPDATA%` data too. |
-| Update submission: time to reach testers |  |  |  |  |
+| Update submission: time to reach testers | Partner Center copies the previous submission, so only the package and "What's new" change. Visibility can switch to Public in the same update. | | | Yes |
 | Emails or messages from Microsoft |  |  |  |  |
 | Packaging a csc-only WPF app | No Visual Studio project, so the MSIX is a hand-written manifest + `makepri` + `makeappx` (`source/Package-Store.ps1`). | 1 session | Electron gets this from electron-builder's `appx` target instead. | Partly: the identity, tiles, startupTask and runFullTrust text carry over. |
 | Self-updater and Startup-folder shortcut | Both had to go for MSIX. Compiled out with a `STORE` define so the GitHub ZIP keeps working unchanged. | 1 session | Electron: disable electron-updater when `process.windowsStore` is true; use the appx `startupTask`. | Yes |
