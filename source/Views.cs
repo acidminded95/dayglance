@@ -16,6 +16,8 @@ namespace Dayglance {
   DateTime weekFirst;
   bool sizing;
   bool focusNow,pulseNow; Border weekNowTarget,weekNowCard; Ellipse weekNowDot; // set when compact/expand toggles in week view: scroll the current activity into sight on the next render
+  // Renders and rebuilds (settings, theme) replace the scrollers: the old offset is carried over until the new one has applied it (ScrollToVerticalOffset only lands on the next layout). dayFocus scrolls the day list to the current activity instead.
+  double weekRestore=-1,dayRestore=-1; bool dayFocus; string shownView;
   // Day and week share one window size and position; the mini widget keeps its own. Positions are clamped to the virtual screen so multi-monitor placement survives restarts.
   void SetSize() {
    // Read the stored geometry and raise the guard BEFORE touching MinWidth/Width: changing them moves/resizes the window,
@@ -204,16 +206,16 @@ namespace Dayglance {
    }
    if(!reported && done!=null) { var wait=new System.Windows.Threading.DispatcherTimer { Interval=baseDuration }; wait.Tick+=(s,e)=> { wait.Stop(); done(); }; wait.Start(); }
   }
-  public void ScrollWeekToHour(double hour) { if(weekScroll==null) return; weekScroll.UpdateLayout(); weekScroll.ScrollToVerticalOffset(hour*Math.Max(14,42*weekZoom)); weekScroll.UpdateLayout(); }
+  public void ScrollWeekToHour(double hour) { if(weekScroll==null) return; weekRestore=-1; weekScroll.UpdateLayout(); weekScroll.ScrollToVerticalOffset(hour*Math.Max(14,42*weekZoom)); weekScroll.UpdateLayout(); }
   public void ZoomSchedule(int direction,double anchor) {
    if(!State.WeekView) { dayZoom=Math.Max(.8,Math.Min(1.7,dayZoom*(direction>0?1.1:1/1.1))); list.LayoutTransform=new ScaleTransform(dayZoom,dayZoom); return; }
-   double before=weekZoom,previous=weekScroll.VerticalOffset; weekZoom=Math.Max(.65,Math.Min(3,weekZoom*(direction>0?1.15:1/1.15))); RenderWeek(); weekScroll.UpdateLayout(); weekScroll.ScrollToVerticalOffset((previous+anchor)*weekZoom/before-anchor);
+   double before=weekZoom,previous=weekRestore>=0?weekRestore:weekScroll.VerticalOffset; weekZoom=Math.Max(.65,Math.Min(3,weekZoom*(direction>0?1.15:1/1.15))); RenderWeek(); weekScroll.UpdateLayout(); weekRestore=Math.Max(0,(previous+anchor)*weekZoom/before-anchor); weekScroll.ScrollToVerticalOffset(weekRestore);
   }
   // Week grid: a fixed hour gutter, day headings and a body that shows 3–7 day columns.
   // With fewer than seven columns the body scrolls horizontally and resizing keeps today centered.
   void RenderWeek() {
    if(weekPanel==null || ActualWidth<1) return;
-   double offset=weekScroll==null?0:weekScroll.VerticalOffset,hOffset=weekScroll==null?-1:weekScroll.HorizontalOffset;
+   double offset=weekRestore>=0?weekRestore:weekScroll==null?0:weekScroll.VerticalOffset,hOffset=weekScroll==null?-1:weekScroll.HorizontalOffset;
    weekPanel.Children.Clear(); weekCardSet.Clear(); weekParts=new System.Collections.Generic.List<UIElement>[7]; for(int part=0;part<7;part++) weekParts[part]=new System.Collections.Generic.List<UIElement>(); weekNowTarget=null; weekNowCard=null; weekNowDot=null; DateTime first=Schedule.WeekStart(selected),now=AppClock.Now;
    const double bar=10,hbar=8,minColumn=110; double gutter=UI.Hour12?54:44;
    double total=weekPanel.ActualWidth>100?weekPanel.ActualWidth:ActualWidth-40, body=Math.Max(150,total-gutter-bar);
@@ -281,6 +283,8 @@ namespace Dayglance {
    var bodyScroll=weekScroll;
    bodyScroll.ScrollChanged+=(s,e)=> { gutterScroll.ScrollToVerticalOffset(e.VerticalOffset); headScroll.ScrollToHorizontalOffset(e.HorizontalOffset); };
    bodyScroll.ScrollToVerticalOffset(offset);
+   // The offset only lands once the new scroller is laid out, so it stays pending until then: a render or rebuild in between (a resize while settings close) would otherwise read 0.
+   weekRestore=offset; Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,new Action(()=> { if(weekScroll!=bodyScroll || weekRestore<0) return; bodyScroll.ScrollToVerticalOffset(weekRestore); bodyScroll.UpdateLayout(); weekRestore=-1; }));
    weekTargetOffset=0;
    if(sliding) {
     bool recenter=hOffset<0 || Math.Abs(column-weekColumn)>.01 || first!=weekFirst;
