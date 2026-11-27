@@ -1,6 +1,7 @@
 name: Release
 
 # Push a tag like v2.1.0 (matching source/Version.cs) to build, test and publish a release.
+# The release carries the ZIP (used by auto-update) and the Store MSIX (uploaded to Partner Center by hand).
 on:
   push:
     tags: ['v*']
@@ -42,6 +43,11 @@ jobs:
           Write-Output $result
           if (-not $result.StartsWith('PASS')) { exit 1 }
 
+      # Unsigned MSIX for the Microsoft Store update (Partner Center signs it); the updater only looks at the .zip.
+      - name: Build Store package
+        shell: powershell
+        run: ./source/Package-Store.ps1 -OutputDirectory dist/store
+
       # Uses the GitHub CLI that ships on the runner instead of a third-party action.
       - name: Publish release
         if: github.ref_type == 'tag'
@@ -51,4 +57,4 @@ jobs:
           GH_REPO: ${{ github.repository }}
           REF_NAME: ${{ github.ref_name }}
           VERSION: ${{ steps.version.outputs.version }}
-        run: gh release create $env:REF_NAME "dist/Dayglance-$env:VERSION.zip" --verify-tag --generate-notes
+        run: gh release create $env:REF_NAME "dist/Dayglance-$env:VERSION.zip" "dist/store/Dayglance-$env:VERSION.0.msix" --verify-tag --generate-notes
