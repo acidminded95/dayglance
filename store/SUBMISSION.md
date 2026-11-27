@@ -21,7 +21,7 @@ Needs the Windows 10/11 SDK with these features: **Windows App Certification Kit
 # -> dist\store\Dayglance-2.1.1.0.msix (unsigned, for upload)
 ```
 
-The package version is `Version.cs` plus `.0` (2.1.1 → 2.1.1.0). Every upload must be higher than the last, so bump `Version.cs` for the update rehearsal (2.1.2 → 2.1.2.0). The **Store package** GitHub workflow builds the same MSIX on every pull request and keeps it as a downloadable artifact.
+The package version is `Version.cs` plus `.0` (2.1.1 → 2.1.1.0). Every upload must be higher than the last, so bump `Version.cs` for the update rehearsal (2.1.2 → 2.1.2.0). The **Store package** GitHub workflow builds the same MSIX on every pull request and keeps it as a downloadable artifact. The **Release** workflow also attaches `Dayglance-<version>.0.msix` to each GitHub release, so for a Store update: push the tag, download the MSIX from the release page, and upload it in a new Partner Center submission.
 
 What the Store build (`Build.ps1 -Store`) changes:
 
